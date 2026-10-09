@@ -1,0 +1,28 @@
+[gd_scene load_steps=3 format=3 uid="uid://cxkxplayeruid"]
+
+[ext_resource type="Script" path="res://scripts/world/player.gd" id="1_pl1"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_pl2"]
+size = Vector2(32, 32)
+
+[node name="Player" type="CharacterBody2D"]
+script = ExtResource("1_pl1")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_pl2")
+
+[node name="ColorRect" type="ColorRect" parent="."]
+offset_left = -16.0
+offset_top = -16.0
+offset_right = 16.0
+offset_bottom = 16.0
+color = Color(0.2, 0.6, 1, 1)
+
+[node name="DirectionIndicator" type="Polygon2D" parent="."]
+position = Vector2(0, -16)
+color = Color(1, 1, 1, 1)
+polygon = PackedVector2Array(-8, 0, 8, 0, 0, -8)
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position_smoothing_enabled = true
+position_smoothing_speed = 8.0

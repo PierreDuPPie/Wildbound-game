@@ -1,0 +1,36 @@
+[gd_resource type="Resource" script_class="CreatureSpecies" load_steps=11 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/creature_species.gd" id="1_species"]
+[ext_resource type="Resource" path="res://data/aspects/solar.tres" id="2_aspect"]
+[ext_resource type="Resource" path="res://data/instincts/pursuit.tres" id="3_instinct"]
+[ext_resource type="Resource" path="res://data/moves/sun_dash.tres" id="4_move"]
+[ext_resource type="Resource" path="res://data/moves/ambush_pounce.tres" id="5_move"]
+[ext_resource type="Resource" path="res://data/moves/sun_skip.tres" id="6_move"]
+[ext_resource type="Resource" path="res://data/moves/solar_flare.tres" id="7_move"]
+[ext_resource type="Script" path="res://scripts/data/aspect_data.gd" id="8_aspect_type"]
+[ext_resource type="Script" path="res://scripts/data/move_data.gd" id="9_move_type"]
+[ext_resource type="Resource" path="res://data/creatures/cheetaron.tres" id="10_evolve"]
+
+[resource]
+script = ExtResource("1_species")
+species_id = &"cheetan"
+atlas_number = 13
+display_name = "Cheetan"
+short_description = "A blazing sprinter that channels solar energy through its spotted pelt. It strikes with blinding speed and vanishes before retaliation."
+rarity = &"uncommon"
+animal_inspiration = "Cheetah (Acinonyx jubatus)"
+habitat_tags = Array[StringName]([&"savannah", &"grassland", &"riverbank"])
+temperament_tags = Array[StringName]([&"focused", &"solitary", &"explosive"])
+aspects = Array[ExtResource("8_aspect_type")]([ExtResource("2_aspect")])
+instinct = ExtResource("3_instinct")
+base_vitality = 48
+base_power = 55
+base_guard = 35
+base_agility = 68
+base_focus = 32
+base_instinct = 50
+growth_curve = &"steady"
+base_bond_difficulty = 55
+learnset = Array[ExtResource("9_move_type")]([ExtResource("4_move"), ExtResource("5_move"), ExtResource("6_move"), ExtResource("7_move")])
+evolves_into = ExtResource("10_evolve")
+evolution_level = 16

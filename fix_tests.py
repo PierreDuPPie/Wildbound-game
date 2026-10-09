@@ -1,0 +1,7 @@
+﻿code = open('tests/test_runner.gd', 'r', encoding='utf-8').read()
+code = code.replace('var EXPECTED_SPECIES_COUNT = 30', 'var EXPECTED_SPECIES_COUNT = 40')
+code = code.replace('assert_eq(species_count, 30', 'assert_eq(species_count, 40')
+code = code.replace('var EXPECTED_MOVES_COUNT = 10', 'var EXPECTED_MOVES_COUNT = 35')
+code = code.replace('assert_eq(moves_count, 10', 'assert_eq(moves_count, 35')
+open('tests/test_runner.gd', 'w', encoding='utf-8').write(code)
+print("Replaced expected counts in test_runner.gd")

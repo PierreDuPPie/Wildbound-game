@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="InstinctData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/instinct_data.gd" id="1_inst"]
+
+[resource]
+script = ExtResource("1_inst")
+instinct_id = &"grit"
+display_name = "Grit"
+description = "Survives fatal hit with 1 HP once. +35% Guard."
+hook_id = &"grit_survive_knockout"
+trigger_text = "Grit endures a fatal hit with one vitality, once per battle."
+prevents_knockout = true
+condition_stat = &"none"
+power_modifier_percent = 0.0
+guard_modifier_percent = 0.35
+grants_fear_immune = false

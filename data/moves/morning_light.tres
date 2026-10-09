@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="MoveData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/move_data.gd" id="1_move"]
+
+[resource]
+script = ExtResource("1_move")
+move_id = &"morning_light"
+display_name = "Morning Light"
+aspect_id = &"solar"
+power = 0
+accuracy = 100
+category = 2
+priority = 0
+stamina_cost = 0
+hook_id = &"heal_self_40"

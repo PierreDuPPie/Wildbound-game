@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="InstinctData" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/data/instinct_data.gd" id="1_instinct"]
+[resource]
+script = ExtResource("1_instinct")
+instinct_id = &"sentry"
+display_name = "Sentry"
+description = "Reads the field before anyone else and reacts first."
+trigger_text = "Sentry spots the opening!"
+once_per_battle = true
+hook_id = &"sentry_opening_priority"
+condition_below_percent = 0.0
+agility_modifier_percent = 0.25

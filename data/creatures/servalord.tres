@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="CreatureSpecies" load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/creature_species.gd" id="1_species"]
+[ext_resource type="Resource" path="res://data/aspects/solar.tres" id="2_aspect"]
+[ext_resource type="Resource" path="res://data/instincts/sentry.tres" id="3_instinct"]
+[ext_resource type="Resource" path="res://data/moves/ambush_pounce.tres" id="4_move"]
+[ext_resource type="Resource" path="res://data/moves/sun_dash.tres" id="5_move"]
+[ext_resource type="Resource" path="res://data/moves/sun_skip.tres" id="6_move"]
+[ext_resource type="Resource" path="res://data/moves/solar_flare.tres" id="7_move"]
+[ext_resource type="Script" path="res://scripts/data/aspect_data.gd" id="8_aspect_type"]
+[ext_resource type="Script" path="res://scripts/data/move_data.gd" id="9_move_type"]
+
+[resource]
+script = ExtResource("1_species")
+species_id = &"servalord"
+atlas_number = 40
+display_name = "Servalord"
+short_description = "A phantom of the tall grass whose oversized ears track every heartbeat. It stalks with impossible patience, then strikes with lethal elegance."
+rarity = &"rare"
+animal_inspiration = "Serval (Leptailurus serval)"
+habitat_tags = Array[StringName]([&"savannah", &"wetland", &"grassland"])
+temperament_tags = Array[StringName]([&"patient", &"lethal", &"elegant"])
+aspects = Array[ExtResource("8_aspect_type")]([ExtResource("2_aspect")])
+instinct = ExtResource("3_instinct")
+base_vitality = 62
+base_power = 78
+base_guard = 50
+base_agility = 90
+base_focus = 52
+base_instinct = 75
+growth_curve = &"steady"
+base_bond_difficulty = 34
+learnset = Array[ExtResource("9_move_type")]([ExtResource("4_move"), ExtResource("5_move"), ExtResource("6_move"), ExtResource("7_move")])

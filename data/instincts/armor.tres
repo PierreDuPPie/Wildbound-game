@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="InstinctData" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/data/instinct_data.gd" id="1_instinct"]
+[resource]
+script = ExtResource("1_instinct")
+instinct_id = &"armor"
+display_name = "Armor"
+description = "Pangolet tightens its scales when pressured, becoming much harder to move."
+trigger_text = "Pangolet locks its scales!"
+once_per_battle = false
+hook_id = &"armor_low_vitality_guard_boost"
+condition_stat = &"vitality"
+condition_below_percent = 0.5
+guard_modifier_percent = 0.3

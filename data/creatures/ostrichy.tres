@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="CreatureSpecies" load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/creature_species.gd" id="1_species"]
+[ext_resource type="Resource" path="res://data/aspects/solar.tres" id="2_aspect"]
+[ext_resource type="Resource" path="res://data/instincts/sentry.tres" id="3_instinct"]
+[ext_resource type="Resource" path="res://data/moves/sun_skip.tres" id="4_move"]
+[ext_resource type="Resource" path="res://data/moves/scrap_swipe.tres" id="5_move"]
+[ext_resource type="Resource" path="res://data/moves/sky_dive.tres" id="6_move"]
+[ext_resource type="Resource" path="res://data/moves/stampede.tres" id="7_move"]
+[ext_resource type="Script" path="res://scripts/data/aspect_data.gd" id="8_aspect_type"]
+[ext_resource type="Script" path="res://scripts/data/move_data.gd" id="9_move_type"]
+
+[resource]
+script = ExtResource("1_species")
+species_id = &"ostrichy"
+atlas_number = 13
+display_name = "Ostrichy"
+short_description = "A towering flightless bird that relies on its powerful, bounding strides. One well-placed kick can send foes flying."
+rarity = &"common"
+animal_inspiration = "Common Ostrich (Struthio camelus)"
+habitat_tags = Array[StringName]([&"savannah", &"desert", &"grassland"])
+temperament_tags = Array[StringName]([&"skittish", &"swift", &"territorial"])
+aspects = Array[ExtResource("8_aspect_type")]([ExtResource("2_aspect")])
+instinct = ExtResource("3_instinct")
+base_vitality = 50
+base_power = 50
+base_guard = 35
+base_agility = 65
+base_focus = 25
+base_instinct = 45
+growth_curve = &"steady"
+base_bond_difficulty = 50
+learnset = Array[ExtResource("9_move_type")]([ExtResource("4_move"), ExtResource("5_move"), ExtResource("6_move"), ExtResource("7_move")])

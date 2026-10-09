@@ -1,0 +1,36 @@
+[gd_resource type="Resource" script_class="CreatureSpecies" load_steps=11 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/creature_species.gd" id="1_species"]
+[ext_resource type="Resource" path="res://data/aspects/earth.tres" id="2_earth"]
+[ext_resource type="Resource" path="res://data/instincts/defiance.tres" id="3_defiance"]
+[ext_resource type="Resource" path="res://data/moves/scrap_swipe.tres" id="4_swipe"]
+[ext_resource type="Resource" path="res://data/moves/badger_bite.tres" id="5_bite"]
+[ext_resource type="Resource" path="res://data/moves/howl.tres" id="6_move"]
+[ext_resource type="Resource" path="res://data/moves/ground_slam.tres" id="7_move"]
+[ext_resource type="Script" path="res://scripts/data/aspect_data.gd" id="8_aspect_type"]
+[ext_resource type="Script" path="res://scripts/data/move_data.gd" id="9_move_type"]
+[ext_resource type="Resource" path="res://data/creatures/ratel_prime.tres" id="10_evolve"]
+
+[resource]
+script = ExtResource("1_species")
+species_id = &"ratelit"
+atlas_number = 1
+display_name = "Ratelit"
+short_description = "A fearless burrow-raider that treats danger as a personal invitation."
+rarity = &"uncommon"
+animal_inspiration = "Honey badger (Mellivora capensis)"
+habitat_tags = Array[StringName]([&"bushveld", &"savannah", &"rocky"])
+temperament_tags = Array[StringName]([&"fearless", &"stubborn", &"curious", &"chaotic"])
+aspects = Array[ExtResource("8_aspect_type")]([ExtResource("2_earth")])
+instinct = ExtResource("3_defiance")
+base_vitality = 52
+base_power = 49
+base_guard = 46
+base_agility = 38
+base_focus = 28
+base_instinct = 58
+growth_curve = &"steady"
+base_bond_difficulty = 68
+learnset = Array[ExtResource("9_move_type")]([ExtResource("4_swipe"), ExtResource("5_bite"), ExtResource("6_move"), ExtResource("7_move")])
+evolves_into = ExtResource("10_evolve")
+evolution_level = 10

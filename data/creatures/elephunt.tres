@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="CreatureSpecies" load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/creature_species.gd" id="1_species"]
+[ext_resource type="Resource" path="res://data/aspects/stone.tres" id="2_aspect"]
+[ext_resource type="Resource" path="res://data/instincts/armor.tres" id="3_instinct"]
+[ext_resource type="Script" path="res://scripts/data/aspect_data.gd" id="5_aspect_type"]
+[ext_resource type="Script" path="res://scripts/data/move_data.gd" id="6_move_type"]
+[ext_resource type="Resource" path="res://data/moves/shell_slam.tres" id="m_shell_slam"]
+[ext_resource type="Resource" path="res://data/moves/scale_bash.tres" id="m_scale_bash"]
+[ext_resource type="Resource" path="res://data/moves/tusk_charge.tres" id="m_tusk_charge"]
+[ext_resource type="Resource" path="res://data/moves/stampede.tres" id="m_stampede"]
+
+[resource]
+script = ExtResource("1_species")
+species_id = &"elephunt"
+atlas_number = 7
+display_name = "Elephunt"
+short_description = "A majestic giant possessing immense strength and deep wisdom. It shapes its environment and remembers every slight."
+rarity = &"common"
+animal_inspiration = "African Elephant (Loxodonta africana)"
+habitat_tags = Array[StringName]([&"savannah", &"woodland", &"forest"])
+temperament_tags = Array[StringName]([&"wise", &"protective", &"gentle"])
+aspects = Array[ExtResource("5_aspect_type")]([ExtResource("2_aspect")])
+instinct = ExtResource("3_instinct")
+base_vitality = 80
+base_power = 60
+base_guard = 60
+base_agility = 20
+base_focus = 20
+base_instinct = 30
+growth_curve = &"steady"
+base_bond_difficulty = 50
+learnset = Array[ExtResource("6_move_type")]([ExtResource("m_shell_slam"), ExtResource("m_scale_bash"), ExtResource("m_tusk_charge"), ExtResource("m_stampede")])

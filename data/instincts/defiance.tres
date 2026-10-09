@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="InstinctData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/instinct_data.gd" id="1_instinct"]
+
+[resource]
+script = ExtResource("1_instinct")
+instinct_id = &"defiance"
+display_name = "Defiance"
+description = "The creature becomes more dangerous when pressured and refuses to be intimidated."
+trigger_text = "Ratelit refuses to back down!"
+once_per_battle = false
+hook_id = &"defiance_low_vitality_power_boost"
+condition_stat = &"vitality"
+condition_below_percent = 0.3
+power_modifier_percent = 0.25
+grants_fear_immune = true
+prevents_knockout = false

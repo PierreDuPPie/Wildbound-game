@@ -1,0 +1,26 @@
+[gd_scene load_steps=4 format=3 uid="uid://cxkxoverworlduid"]
+
+[ext_resource type="PackedScene" uid="uid://cxkxplayeruid" path="res://scenes/world/player.tscn" id="1_ow1"]
+[ext_resource type="Script" path="res://scripts/world/encounter_zone.gd" id="2_ow2"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_ow3"]
+size = Vector2(200, 200)
+
+[node name="Overworld" type="Node2D"]
+
+[node name="Player" parent="." instance=ExtResource("1_ow1")]
+position = Vector2(200, 200)
+
+[node name="TallGrass" type="Area2D" parent="."]
+position = Vector2(500, 200)
+script = ExtResource("2_ow2")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="TallGrass"]
+shape = SubResource("RectangleShape2D_ow3")
+
+[node name="ColorRect" type="ColorRect" parent="TallGrass"]
+offset_left = -100.0
+offset_top = -100.0
+offset_right = 100.0
+offset_bottom = 100.0
+color = Color(0.1, 0.4, 0.1, 0.5)

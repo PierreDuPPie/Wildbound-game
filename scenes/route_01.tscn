@@ -1,0 +1,69 @@
+[gd_scene load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/route_01.gd" id="1_route"]
+[ext_resource type="Script" path="res://scripts/world/player_controller.gd" id="2_player"]
+[ext_resource type="Script" path="res://scripts/world/grass_zone.gd" id="3_grass"]
+
+[sub_resource type="CapsuleShape2D" id="PlayerShape"]
+radius = 9.0
+height = 24.0
+
+[sub_resource type="RectangleShape2D" id="GrassShapeA"]
+size = Vector2(340, 180)
+[sub_resource type="RectangleShape2D" id="GrassShapeB"]
+size = Vector2(300, 210)
+[sub_resource type="RectangleShape2D" id="GrassShapeC"]
+size = Vector2(330, 170)
+
+[node name="Route01" type="Node2D"]
+script = ExtResource("1_route")
+
+[node name="GroundTiles" type="TileMapLayer" parent="."]
+z_index = -10
+
+[node name="GrassA" type="Area2D" parent="."]
+position = Vector2(430, 330)
+script = ExtResource("3_grass")
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GrassA"]
+shape = SubResource("GrassShapeA")
+
+[node name="GrassB" type="Area2D" parent="."]
+position = Vector2(930, 610)
+script = ExtResource("3_grass")
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GrassB"]
+shape = SubResource("GrassShapeB")
+
+[node name="GrassC" type="Area2D" parent="."]
+position = Vector2(1320, 330)
+script = ExtResource("3_grass")
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GrassC"]
+shape = SubResource("GrassShapeC")
+
+[node name="Player" type="CharacterBody2D" parent="."]
+position = Vector2(260, 445)
+script = ExtResource("2_player")
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player"]
+shape = SubResource("PlayerShape")
+[node name="Camera2D" type="Camera2D" parent="Player"]
+position_smoothing_enabled = true
+position_smoothing_speed = 8.0
+limit_left = 0
+limit_top = 0
+limit_right = 1600
+limit_bottom = 900
+
+[node name="HUD" type="CanvasLayer" parent="."]
+[node name="ObjectivePanel" type="ColorRect" parent="HUD"]
+offset_left = 18.0
+offset_top = 16.0
+offset_right = 470.0
+offset_bottom = 54.0
+color = Color(0.07, 0.11, 0.08, 0.86)
+[node name="Objective" type="Label" parent="HUD"]
+offset_left = 34.0
+offset_top = 24.0
+offset_right = 450.0
+offset_bottom = 48.0
+text = "Explore the grass · Battle · Form a Wildbond"
+theme_override_colors/font_color = Color(0.95, 0.94, 0.84, 1)
+theme_override_font_sizes/font_size = 16

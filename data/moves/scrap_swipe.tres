@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="MoveData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/move_data.gd" id="1_move"]
+
+[resource]
+script = ExtResource("1_move")
+move_id = &"scrap_swipe"
+display_name = "Scrap Swipe"
+description = "A fast, dirty swipe with absolutely no concern for manners."
+aspect_id = &"earth"
+category = 0
+power = 35
+accuracy = 100
+priority = 0
+stamina_cost = 2
+hook_id = &"damage_basic"

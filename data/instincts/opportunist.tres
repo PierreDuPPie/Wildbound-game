@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="InstinctData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/instinct_data.gd" id="1_inst"]
+
+[resource]
+script = ExtResource("1_inst")
+instinct_id = &"opportunist"
+display_name = "Opportunist"
+description = "Deals +30% damage to debuffed opponents."
+hook_id = &"opportunist_debuffed_enemy_damage"
+trigger_text = "Opportunist exploits an opponent's debuffs for 30% extra damage."
+condition_stat = &"enemy_debuffed"
+power_modifier_percent = 0.3
+guard_modifier_percent = 0.0
+grants_fear_immune = false

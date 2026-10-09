@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="CreatureSpecies" load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/creature_species.gd" id="1_species"]
+[ext_resource type="Resource" path="res://data/aspects/solar.tres" id="2_aspect"]
+[ext_resource type="Resource" path="res://data/instincts/pride.tres" id="3_instinct"]
+[ext_resource type="Resource" path="res://data/moves/primal_roar.tres" id="4_move"]
+[ext_resource type="Resource" path="res://data/moves/solar_flare.tres" id="5_move"]
+[ext_resource type="Resource" path="res://data/moves/sun_beam.tres" id="6_move"]
+[ext_resource type="Resource" path="res://data/moves/ambush_pounce.tres" id="7_move"]
+[ext_resource type="Script" path="res://scripts/data/aspect_data.gd" id="8_aspect_type"]
+[ext_resource type="Script" path="res://scripts/data/move_data.gd" id="9_move_type"]
+
+[resource]
+script = ExtResource("1_species")
+species_id = &"lionarch"
+atlas_number = 35
+display_name = "Lionarch"
+short_description = "The undisputed sovereign of the savannah. Its radiant mane burns like a corona, and its roar commands absolute authority."
+rarity = &"rare"
+animal_inspiration = "African Lion (Panthera leo)"
+habitat_tags = Array[StringName]([&"savannah", &"grassland", &"rocky"])
+temperament_tags = Array[StringName]([&"regal", &"commanding", &"fearless"])
+aspects = Array[ExtResource("8_aspect_type")]([ExtResource("2_aspect")])
+instinct = ExtResource("3_instinct")
+base_vitality = 88
+base_power = 90
+base_guard = 72
+base_agility = 62
+base_focus = 52
+base_instinct = 75
+growth_curve = &"steady"
+base_bond_difficulty = 32
+learnset = Array[ExtResource("9_move_type")]([ExtResource("4_move"), ExtResource("5_move"), ExtResource("6_move"), ExtResource("7_move")])

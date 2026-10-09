@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="CreatureSpecies" load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/creature_species.gd" id="1_species"]
+[ext_resource type="Resource" path="res://data/aspects/earth.tres" id="2_aspect"]
+[ext_resource type="Resource" path="res://data/instincts/defiance.tres" id="3_instinct"]
+[ext_resource type="Script" path="res://scripts/data/aspect_data.gd" id="5_aspect_type"]
+[ext_resource type="Script" path="res://scripts/data/move_data.gd" id="6_move_type"]
+
+[ext_resource type="Resource" path="res://data/moves/rolling_ram.tres" id="m_rolling_ram"]
+[ext_resource type="Resource" path="res://data/moves/meerkat_jab.tres" id="m_meerkat_jab"]
+[ext_resource type="Resource" path="res://data/moves/scrap_swipe.tres" id="default_scrap_swipe"]
+[resource]
+script = ExtResource("1_species")
+species_id = &"chimpaz"
+atlas_number = 18
+display_name = "Chimpaz"
+short_description = "An inventive and expressive fighter that uses tools gathered from the wild. It outsmarts stronger enemies with ease."
+rarity = &"common"
+animal_inspiration = "Common Chimpanzee (Pan troglodytes)"
+habitat_tags = Array[StringName]([&"woodland", &"forest", &"riverbank"])
+temperament_tags = Array[StringName]([&"intelligent", &"curious", &"social"])
+aspects = Array[ExtResource("5_aspect_type")]([ExtResource("2_aspect")])
+instinct = ExtResource("3_instinct")
+base_vitality = 45
+base_power = 45
+base_guard = 40
+base_agility = 55
+base_focus = 45
+base_instinct = 45
+growth_curve = &"steady"
+base_bond_difficulty = 50
+learnset = Array[ExtResource("6_move_type")]([ExtResource("m_rolling_ram"), ExtResource("m_meerkat_jab"), ExtResource("default_scrap_swipe")])

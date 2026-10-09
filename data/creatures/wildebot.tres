@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="CreatureSpecies" load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/creature_species.gd" id="1_species"]
+[ext_resource type="Resource" path="res://data/aspects/earth.tres" id="2_aspect"]
+[ext_resource type="Resource" path="res://data/instincts/armor.tres" id="3_instinct"]
+[ext_resource type="Resource" path="res://data/moves/scrap_swipe.tres" id="4_move"]
+[ext_resource type="Resource" path="res://data/moves/stampede.tres" id="5_move"]
+[ext_resource type="Resource" path="res://data/moves/howl.tres" id="6_move"]
+[ext_resource type="Resource" path="res://data/moves/ground_slam.tres" id="7_move"]
+[ext_resource type="Script" path="res://scripts/data/aspect_data.gd" id="8_aspect_type"]
+[ext_resource type="Script" path="res://scripts/data/move_data.gd" id="9_move_type"]
+
+[resource]
+script = ExtResource("1_species")
+species_id = &"wildebot"
+atlas_number = 30
+display_name = "Wildebot"
+short_description = "A relentless traveler that forms immense migratory herds. It relies on the safety of the collective to survive."
+rarity = &"common"
+animal_inspiration = "Blue Wildebeest (Connochaetes taurinus)"
+habitat_tags = Array[StringName]([&"savannah", &"grassland", &"woodland"])
+temperament_tags = Array[StringName]([&"herd", &"restless", &"endurant"])
+aspects = Array[ExtResource("8_aspect_type")]([ExtResource("2_aspect")])
+instinct = ExtResource("3_instinct")
+base_vitality = 60
+base_power = 50
+base_guard = 50
+base_agility = 45
+base_focus = 25
+base_instinct = 40
+growth_curve = &"steady"
+base_bond_difficulty = 50
+learnset = Array[ExtResource("9_move_type")]([ExtResource("4_move"), ExtResource("5_move"), ExtResource("6_move"), ExtResource("7_move")])

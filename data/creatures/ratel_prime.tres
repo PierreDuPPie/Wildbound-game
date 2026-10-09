@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="CreatureSpecies" load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/creature_species.gd" id="1_species"]
+[ext_resource type="Resource" path="res://data/aspects/earth.tres" id="2_earth"]
+[ext_resource type="Resource" path="res://data/instincts/defiance.tres" id="3_defiance"]
+[ext_resource type="Resource" path="res://data/moves/scrap_swipe.tres" id="4_swipe"]
+[ext_resource type="Resource" path="res://data/moves/badger_bite.tres" id="5_bite"]
+[ext_resource type="Resource" path="res://data/moves/stampede.tres" id="6_move"]
+[ext_resource type="Resource" path="res://data/moves/tusk_charge.tres" id="7_move"]
+[ext_resource type="Script" path="res://scripts/data/aspect_data.gd" id="8_aspect_type"]
+[ext_resource type="Script" path="res://scripts/data/move_data.gd" id="9_move_type"]
+
+[resource]
+script = ExtResource("1_species")
+species_id = &"ratel_prime"
+atlas_number = 2
+display_name = "Ratel Prime"
+short_description = "A battle-hardened burrow-raider with impenetrable hide."
+rarity = &"rare"
+animal_inspiration = "Honey badger (Mellivora capensis)"
+habitat_tags = Array[StringName]([&"bushveld", &"savannah", &"rocky"])
+temperament_tags = Array[StringName]([&"fearless", &"stubborn", &"chaotic"])
+aspects = Array[ExtResource("8_aspect_type")]([ExtResource("2_earth")])
+instinct = ExtResource("3_defiance")
+base_vitality = 82
+base_power = 79
+base_guard = 76
+base_agility = 58
+base_focus = 38
+base_instinct = 88
+growth_curve = &"steady"
+base_bond_difficulty = 40
+learnset = Array[ExtResource("9_move_type")]([ExtResource("4_swipe"), ExtResource("5_bite"), ExtResource("6_move"), ExtResource("7_move")])

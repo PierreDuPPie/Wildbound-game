@@ -1,0 +1,36 @@
+[gd_resource type="Resource" script_class="CreatureSpecies" load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/creature_species.gd" id="1_species"]
+[ext_resource type="Resource" path="res://data/aspects/solar.tres" id="2_aspect"]
+[ext_resource type="Resource" path="res://data/instincts/sentry.tres" id="3_instinct"]
+[ext_resource type="Script" path="res://scripts/data/aspect_data.gd" id="5_aspect_type"]
+[ext_resource type="Script" path="res://scripts/data/move_data.gd" id="6_move_type"]
+[ext_resource type="Resource" path="res://data/moves/lookout_cry.tres" id="m_lookout_cry"]
+[ext_resource type="Resource" path="res://data/moves/sun_skip.tres" id="m_sun_skip"]
+[ext_resource type="Resource" path="res://data/moves/ambush_pounce.tres" id="m_ambush_pounce"]
+[ext_resource type="Resource" path="res://data/moves/sun_dash.tres" id="m_sun_dash"]
+[ext_resource type="Resource" path="res://data/creatures/caraclash.tres" id="7_evolve"]
+
+[resource]
+script = ExtResource("1_species")
+species_id = &"caraclaw"
+atlas_number = 27
+display_name = "Caraclaw"
+short_description = "An agile leaper with tufted ears, capable of swatting flying foes from the air. Its reflexes are second to none."
+rarity = &"common"
+animal_inspiration = "Caracal (Caracal caracal)"
+habitat_tags = Array[StringName]([&"savannah", &"scrubland", &"woodland"])
+temperament_tags = Array[StringName]([&"agile", &"stealthy", &"solitary"])
+aspects = Array[ExtResource("5_aspect_type")]([ExtResource("2_aspect")])
+instinct = ExtResource("3_instinct")
+base_vitality = 45
+base_power = 55
+base_guard = 35
+base_agility = 60
+base_focus = 30
+base_instinct = 45
+growth_curve = &"steady"
+base_bond_difficulty = 50
+learnset = Array[ExtResource("6_move_type")]([ExtResource("m_lookout_cry"), ExtResource("m_sun_skip"), ExtResource("m_ambush_pounce"), ExtResource("m_sun_dash")])
+evolves_into = ExtResource("7_evolve")
+evolution_level = 14

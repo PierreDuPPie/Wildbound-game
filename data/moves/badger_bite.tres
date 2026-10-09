@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="MoveData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/move_data.gd" id="1_move"]
+
+[resource]
+script = ExtResource("1_move")
+move_id = &"badger_bite"
+display_name = "Badger Bite"
+description = "Ratelit commits to the bite long after a sensible creature would have let go."
+aspect_id = &"earth"
+category = 0
+power = 48
+accuracy = 95
+priority = 0
+stamina_cost = 4
+hook_id = &"damage_basic"

@@ -1,0 +1,36 @@
+[gd_resource type="Resource" script_class="CreatureSpecies" load_steps=11 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/creature_species.gd" id="1_species"]
+[ext_resource type="Resource" path="res://data/aspects/stone.tres" id="2_aspect"]
+[ext_resource type="Resource" path="res://data/instincts/armor.tres" id="3_instinct"]
+[ext_resource type="Resource" path="res://data/moves/scale_bash.tres" id="4_move"]
+[ext_resource type="Resource" path="res://data/moves/rolling_ram.tres" id="5_move"]
+[ext_resource type="Resource" path="res://data/moves/curl_up.tres" id="6_move"]
+[ext_resource type="Resource" path="res://data/moves/shell_slam.tres" id="7_move"]
+[ext_resource type="Script" path="res://scripts/data/aspect_data.gd" id="8_aspect_type"]
+[ext_resource type="Script" path="res://scripts/data/move_data.gd" id="9_move_type"]
+[ext_resource type="Resource" path="res://data/creatures/pangolier.tres" id="10_evolve"]
+
+[resource]
+script = ExtResource("1_species")
+species_id = &"pangolet"
+atlas_number = 3
+display_name = "Pangolet"
+short_description = "A shy plated forager that becomes a rolling wall when cornered."
+rarity = &"common"
+animal_inspiration = "Ground pangolin (Smutsia temminckii)"
+habitat_tags = Array[StringName]([&"bushveld", &"savannah", &"rocky"])
+temperament_tags = Array[StringName]([&"shy", &"patient", &"defensive"])
+aspects = Array[ExtResource("8_aspect_type")]([ExtResource("2_aspect")])
+instinct = ExtResource("3_instinct")
+base_vitality = 50
+base_power = 36
+base_guard = 58
+base_agility = 27
+base_focus = 35
+base_instinct = 50
+growth_curve = &"steady"
+base_bond_difficulty = 44
+learnset = Array[ExtResource("9_move_type")]([ExtResource("4_move"), ExtResource("5_move"), ExtResource("6_move"), ExtResource("7_move")])
+evolves_into = ExtResource("10_evolve")
+evolution_level = 6

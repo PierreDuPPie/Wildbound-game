@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="CreatureSpecies" load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/creature_species.gd" id="1_species"]
+[ext_resource type="Resource" path="res://data/aspects/stone.tres" id="2_aspect"]
+[ext_resource type="Resource" path="res://data/instincts/armor.tres" id="3_instinct"]
+[ext_resource type="Script" path="res://scripts/data/aspect_data.gd" id="5_aspect_type"]
+[ext_resource type="Script" path="res://scripts/data/move_data.gd" id="6_move_type"]
+[ext_resource type="Resource" path="res://data/moves/curl_up.tres" id="m_curl_up"]
+[ext_resource type="Resource" path="res://data/moves/scale_bash.tres" id="m_scale_bash"]
+[ext_resource type="Resource" path="res://data/moves/jaw_lock.tres" id="m_jaw_lock"]
+[ext_resource type="Resource" path="res://data/moves/tail_whip.tres" id="m_tail_whip"]
+
+[resource]
+script = ExtResource("1_species")
+species_id = &"crocodyl"
+atlas_number = 12
+display_name = "Crocodyl"
+short_description = "An ambush predator that lurks in murky waters, striking with terrifying power. Its armor-like scales deflect most attacks."
+rarity = &"common"
+animal_inspiration = "Nile Crocodile (Crocodylus niloticus)"
+habitat_tags = Array[StringName]([&"riverbank", &"marsh", &"wetland"])
+temperament_tags = Array[StringName]([&"patient", &"aggressive", &"ambush"])
+aspects = Array[ExtResource("5_aspect_type")]([ExtResource("2_aspect")])
+instinct = ExtResource("3_instinct")
+base_vitality = 60
+base_power = 70
+base_guard = 65
+base_agility = 30
+base_focus = 20
+base_instinct = 50
+growth_curve = &"steady"
+base_bond_difficulty = 50
+learnset = Array[ExtResource("6_move_type")]([ExtResource("m_curl_up"), ExtResource("m_scale_bash"), ExtResource("m_jaw_lock"), ExtResource("m_tail_whip")])

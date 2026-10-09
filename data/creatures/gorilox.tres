@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="CreatureSpecies" load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/creature_species.gd" id="1_species"]
+[ext_resource type="Resource" path="res://data/aspects/stone.tres" id="2_aspect"]
+[ext_resource type="Resource" path="res://data/instincts/armor.tres" id="3_instinct"]
+[ext_resource type="Resource" path="res://data/moves/scale_bash.tres" id="4_move"]
+[ext_resource type="Resource" path="res://data/moves/primal_roar.tres" id="5_move"]
+[ext_resource type="Resource" path="res://data/moves/boulder_bash.tres" id="6_move"]
+[ext_resource type="Resource" path="res://data/moves/shell_slam.tres" id="7_move"]
+[ext_resource type="Script" path="res://scripts/data/aspect_data.gd" id="8_aspect_type"]
+[ext_resource type="Script" path="res://scripts/data/move_data.gd" id="9_move_type"]
+
+[resource]
+script = ExtResource("1_species")
+species_id = &"gorilox"
+atlas_number = 17
+display_name = "Gorilox"
+short_description = "A muscular powerhouse that defends its family with chest-beating displays. Beneath its intimidating exterior lies a peaceful heart."
+rarity = &"common"
+animal_inspiration = "Eastern Gorilla (Gorilla beringei)"
+habitat_tags = Array[StringName]([&"forest", &"mountain", &"woodland"])
+temperament_tags = Array[StringName]([&"protective", &"peaceful", &"dominant"])
+aspects = Array[ExtResource("8_aspect_type")]([ExtResource("2_aspect")])
+instinct = ExtResource("3_instinct")
+base_vitality = 70
+base_power = 70
+base_guard = 65
+base_agility = 35
+base_focus = 25
+base_instinct = 40
+growth_curve = &"steady"
+base_bond_difficulty = 50
+learnset = Array[ExtResource("9_move_type")]([ExtResource("4_move"), ExtResource("5_move"), ExtResource("6_move"), ExtResource("7_move")])

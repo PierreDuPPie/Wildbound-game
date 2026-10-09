@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="CreatureSpecies" load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/creature_species.gd" id="1_species"]
+[ext_resource type="Resource" path="res://data/aspects/earth.tres" id="2_aspect"]
+[ext_resource type="Resource" path="res://data/instincts/armor.tres" id="3_instinct"]
+[ext_resource type="Script" path="res://scripts/data/aspect_data.gd" id="5_aspect_type"]
+[ext_resource type="Script" path="res://scripts/data/move_data.gd" id="6_move_type"]
+
+[ext_resource type="Resource" path="res://data/moves/rolling_ram.tres" id="m_rolling_ram"]
+[ext_resource type="Resource" path="res://data/moves/badger_bite.tres" id="m_badger_bite"]
+[ext_resource type="Resource" path="res://data/moves/scrap_swipe.tres" id="default_scrap_swipe"]
+[resource]
+script = ExtResource("1_species")
+species_id = &"pythonis"
+atlas_number = 23
+display_name = "Pythonis"
+short_description = "A silent constrictor that senses the heat of its prey. It relies on overwhelming strength to secure a win."
+rarity = &"common"
+animal_inspiration = "Southern African Python (Python natalensis)"
+habitat_tags = Array[StringName]([&"woodland", &"savannah", &"riverbank"])
+temperament_tags = Array[StringName]([&"patient", &"stealthy", &"calm"])
+aspects = Array[ExtResource("5_aspect_type")]([ExtResource("2_aspect")])
+instinct = ExtResource("3_instinct")
+base_vitality = 60
+base_power = 55
+base_guard = 50
+base_agility = 40
+base_focus = 30
+base_instinct = 40
+growth_curve = &"steady"
+base_bond_difficulty = 50
+learnset = Array[ExtResource("6_move_type")]([ExtResource("m_rolling_ram"), ExtResource("m_badger_bite"), ExtResource("default_scrap_swipe")])

@@ -1,0 +1,10 @@
+[gd_scene format=3 uid="uid://route01uid"]
+
+[ext_resource type="Script" path="res://scripts/world/route_01.gd" id="1_route01"]
+[ext_resource type="PackedScene" uid="uid://cxkxplayeruid" path="res://scenes/world/player.tscn" id="2_player"]
+
+[node name="Route01" type="Node2D"]
+script = ExtResource("1_route01")
+
+[node name="Player" parent="." instance=ExtResource("2_player")]
+position = Vector2(200, 750)

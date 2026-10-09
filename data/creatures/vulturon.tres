@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="CreatureSpecies" load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/creature_species.gd" id="1_species"]
+[ext_resource type="Resource" path="res://data/aspects/solar.tres" id="2_aspect"]
+[ext_resource type="Resource" path="res://data/instincts/sentry.tres" id="3_instinct"]
+[ext_resource type="Script" path="res://scripts/data/aspect_data.gd" id="5_aspect_type"]
+[ext_resource type="Script" path="res://scripts/data/move_data.gd" id="6_move_type"]
+
+[ext_resource type="Resource" path="res://data/moves/sun_dash.tres" id="m_sun_dash"]
+[ext_resource type="Resource" path="res://data/moves/lookout_cry.tres" id="m_lookout_cry"]
+[ext_resource type="Resource" path="res://data/moves/sun_skip.tres" id="default_sun_skip"]
+[resource]
+script = ExtResource("1_species")
+species_id = &"vulturon"
+atlas_number = 22
+display_name = "Vulturon"
+short_description = "A keen-eyed scavenger that circles endlessly in the thermals. It waits patiently for the right moment to descend."
+rarity = &"common"
+animal_inspiration = "Cape Vulture (Gyps coprotheres)"
+habitat_tags = Array[StringName]([&"mountain", &"savannah", &"rocky"])
+temperament_tags = Array[StringName]([&"patient", &"observant", &"opportunistic"])
+aspects = Array[ExtResource("5_aspect_type")]([ExtResource("2_aspect")])
+instinct = ExtResource("3_instinct")
+base_vitality = 45
+base_power = 45
+base_guard = 40
+base_agility = 50
+base_focus = 30
+base_instinct = 55
+growth_curve = &"steady"
+base_bond_difficulty = 50
+learnset = Array[ExtResource("6_move_type")]([ExtResource("m_sun_dash"), ExtResource("m_lookout_cry"), ExtResource("default_sun_skip")])

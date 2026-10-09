@@ -1,0 +1,36 @@
+[gd_resource type="Resource" script_class="CreatureSpecies" load_steps=11 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/creature_species.gd" id="1_species"]
+[ext_resource type="Resource" path="res://data/aspects/solar.tres" id="2_aspect"]
+[ext_resource type="Resource" path="res://data/instincts/pride.tres" id="3_instinct"]
+[ext_resource type="Resource" path="res://data/moves/sun_dash.tres" id="4_move"]
+[ext_resource type="Resource" path="res://data/moves/primal_roar.tres" id="5_move"]
+[ext_resource type="Resource" path="res://data/moves/solar_flare.tres" id="6_move"]
+[ext_resource type="Resource" path="res://data/moves/sun_beam.tres" id="7_move"]
+[ext_resource type="Script" path="res://scripts/data/aspect_data.gd" id="8_aspect_type"]
+[ext_resource type="Script" path="res://scripts/data/move_data.gd" id="9_move_type"]
+[ext_resource type="Resource" path="res://data/creatures/lionarch.tres" id="10_evolve"]
+
+[resource]
+script = ExtResource("1_species")
+species_id = &"lionet"
+atlas_number = 17
+display_name = "Lionet"
+short_description = "A proud young lion with a budding mane that radiates solar warmth. At full health, its confidence becomes an overwhelming force."
+rarity = &"uncommon"
+animal_inspiration = "African Lion (Panthera leo)"
+habitat_tags = Array[StringName]([&"savannah", &"grassland", &"rocky"])
+temperament_tags = Array[StringName]([&"proud", &"bold", &"commanding"])
+aspects = Array[ExtResource("8_aspect_type")]([ExtResource("2_aspect")])
+instinct = ExtResource("3_instinct")
+base_vitality = 58
+base_power = 60
+base_guard = 48
+base_agility = 45
+base_focus = 35
+base_instinct = 50
+growth_curve = &"steady"
+base_bond_difficulty = 58
+learnset = Array[ExtResource("9_move_type")]([ExtResource("4_move"), ExtResource("5_move"), ExtResource("6_move"), ExtResource("7_move")])
+evolves_into = ExtResource("10_evolve")
+evolution_level = 18

@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="CreatureSpecies" load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/creature_species.gd" id="1_species"]
+[ext_resource type="Resource" path="res://data/aspects/earth.tres" id="2_aspect"]
+[ext_resource type="Resource" path="res://data/instincts/opportunist.tres" id="3_instinct"]
+[ext_resource type="Resource" path="res://data/moves/mud_sling.tres" id="4_move"]
+[ext_resource type="Resource" path="res://data/moves/howl.tres" id="5_move"]
+[ext_resource type="Resource" path="res://data/moves/badger_bite.tres" id="6_move"]
+[ext_resource type="Resource" path="res://data/moves/stampede.tres" id="7_move"]
+[ext_resource type="Script" path="res://scripts/data/aspect_data.gd" id="8_aspect_type"]
+[ext_resource type="Script" path="res://scripts/data/move_data.gd" id="9_move_type"]
+
+[resource]
+script = ExtResource("1_species")
+species_id = &"jackalore"
+atlas_number = 36
+display_name = "Jackalore"
+short_description = "A wily rogue that has mastered the art of exploiting weakness. Its earth-toned fur hides countless tricks and dirty tactics."
+rarity = &"rare"
+animal_inspiration = "Black-backed Jackal (Lupulella mesomelas)"
+habitat_tags = Array[StringName]([&"savannah", &"scrubland", &"woodland"])
+temperament_tags = Array[StringName]([&"devious", &"resourceful", &"ruthless"])
+aspects = Array[ExtResource("8_aspect_type")]([ExtResource("2_aspect")])
+instinct = ExtResource("3_instinct")
+base_vitality = 70
+base_power = 78
+base_guard = 55
+base_agility = 82
+base_focus = 62
+base_instinct = 70
+growth_curve = &"steady"
+base_bond_difficulty = 30
+learnset = Array[ExtResource("9_move_type")]([ExtResource("4_move"), ExtResource("5_move"), ExtResource("6_move"), ExtResource("7_move")])

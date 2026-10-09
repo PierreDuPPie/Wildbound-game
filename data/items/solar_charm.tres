@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/item_data.gd" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+item_id = &"solar_charm"
+display_name = "Solar Charm"
+description = "A glowing talisman that channels solar fury. +20% Power for this battle."
+category = 2
+use_context = 1
+buy_price = 300
+sell_price = 150
+buff_stat = &"power"
+buff_percent = 0.2

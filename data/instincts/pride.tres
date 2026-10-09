@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="InstinctData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/instinct_data.gd" id="1_inst"]
+
+[resource]
+script = ExtResource("1_inst")
+instinct_id = &"pride"
+display_name = "Pride"
+description = "+30% Power and +20% Guard when at 100% HP."
+hook_id = &"pride_full_vitality_boost"
+trigger_text = "Pride strengthens Power and Guard at full vitality."
+condition_stat = &"vitality_full"
+power_modifier_percent = 0.3
+guard_modifier_percent = 0.2
+grants_fear_immune = false

@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="CreatureSpecies" load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/creature_species.gd" id="1_species"]
+[ext_resource type="Resource" path="res://data/aspects/earth.tres" id="2_aspect"]
+[ext_resource type="Resource" path="res://data/instincts/armor.tres" id="3_instinct"]
+[ext_resource type="Resource" path="res://data/moves/rolling_ram.tres" id="4_move"]
+[ext_resource type="Resource" path="res://data/moves/scrap_swipe.tres" id="5_move"]
+[ext_resource type="Resource" path="res://data/moves/jaw_lock.tres" id="6_move"]
+[ext_resource type="Resource" path="res://data/moves/tusk_charge.tres" id="7_move"]
+[ext_resource type="Script" path="res://scripts/data/aspect_data.gd" id="8_aspect_type"]
+[ext_resource type="Script" path="res://scripts/data/move_data.gd" id="9_move_type"]
+
+[resource]
+script = ExtResource("1_species")
+species_id = &"hippotam"
+atlas_number = 9
+display_name = "Hippotam"
+short_description = "A territorial river-dweller that aggressively guards its watery domain. Its jaw strength is legendary among the wilds."
+rarity = &"common"
+animal_inspiration = "Common Hippopotamus (Hippopotamus amphibius)"
+habitat_tags = Array[StringName]([&"riverbank", &"marsh", &"wetland"])
+temperament_tags = Array[StringName]([&"territorial", &"aggressive", &"unpredictable"])
+aspects = Array[ExtResource("8_aspect_type")]([ExtResource("2_aspect")])
+instinct = ExtResource("3_instinct")
+base_vitality = 75
+base_power = 60
+base_guard = 55
+base_agility = 25
+base_focus = 20
+base_instinct = 35
+growth_curve = &"steady"
+base_bond_difficulty = 50
+learnset = Array[ExtResource("9_move_type")]([ExtResource("4_move"), ExtResource("5_move"), ExtResource("6_move"), ExtResource("7_move")])

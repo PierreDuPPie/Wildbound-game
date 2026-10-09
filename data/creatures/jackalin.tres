@@ -1,0 +1,36 @@
+[gd_resource type="Resource" script_class="CreatureSpecies" load_steps=11 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/creature_species.gd" id="1_species"]
+[ext_resource type="Resource" path="res://data/aspects/earth.tres" id="2_aspect"]
+[ext_resource type="Resource" path="res://data/instincts/opportunist.tres" id="3_instinct"]
+[ext_resource type="Resource" path="res://data/moves/scrap_swipe.tres" id="4_move"]
+[ext_resource type="Resource" path="res://data/moves/mud_sling.tres" id="5_move"]
+[ext_resource type="Resource" path="res://data/moves/howl.tres" id="6_move"]
+[ext_resource type="Resource" path="res://data/moves/badger_bite.tres" id="7_move"]
+[ext_resource type="Script" path="res://scripts/data/aspect_data.gd" id="8_aspect_type"]
+[ext_resource type="Script" path="res://scripts/data/move_data.gd" id="9_move_type"]
+[ext_resource type="Resource" path="res://data/creatures/jackalore.tres" id="10_evolve"]
+
+[resource]
+script = ExtResource("1_species")
+species_id = &"jackalin"
+atlas_number = 16
+display_name = "Jackalin"
+short_description = "A cunning opportunist that exploits any weakness. It circles patiently, waiting for the perfect moment to strike a debuffed foe."
+rarity = &"uncommon"
+animal_inspiration = "Black-backed Jackal (Lupulella mesomelas)"
+habitat_tags = Array[StringName]([&"savannah", &"scrubland", &"woodland"])
+temperament_tags = Array[StringName]([&"cunning", &"patient", &"opportunistic"])
+aspects = Array[ExtResource("8_aspect_type")]([ExtResource("2_aspect")])
+instinct = ExtResource("3_instinct")
+base_vitality = 48
+base_power = 50
+base_guard = 38
+base_agility = 55
+base_focus = 40
+base_instinct = 45
+growth_curve = &"steady"
+base_bond_difficulty = 45
+learnset = Array[ExtResource("9_move_type")]([ExtResource("4_move"), ExtResource("5_move"), ExtResource("6_move"), ExtResource("7_move")])
+evolves_into = ExtResource("10_evolve")
+evolution_level = 12

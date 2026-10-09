@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/item_data.gd" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+item_id = &"revival_seed"
+display_name = "Revival Seed"
+description = "A rare seed that revives a fainted creature with 25% HP."
+category = 0
+use_context = 0
+buy_price = 500
+sell_price = 250
+revive = true
+revive_percent = 0.25

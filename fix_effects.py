@@ -1,0 +1,8 @@
+﻿content = open('scripts/battle/battle_effects.gd', 'r', encoding='utf-8').read()
+content = content.replace('tween.tween_property(target, "scale", Vector2(1.15, 1.15), 0.1)', 'tween.tween_property(target.sprite, "scale", target.base_sprite_scale * 1.15, 0.1)')
+content = content.replace('tween.tween_property(target, "scale", Vector2.ONE, 0.01)', 'tween.tween_property(target.sprite, "scale", target.base_sprite_scale, 0.01)')
+content = content.replace('tween.tween_property(target, "scale", Vector2(1.02, 1.02), 0.05)', 'tween.tween_property(target.sprite, "scale", target.base_sprite_scale * 1.02, 0.05)')
+content = content.replace('tween.tween_property(target, "scale", Vector2.ONE, 0.05)', 'tween.tween_property(target.sprite, "scale", target.base_sprite_scale, 0.05)')
+content = content.replace('tween.tween_property(target, "scale", Vector2.ONE, 0.2)', 'tween.tween_property(target.sprite, "scale", target.base_sprite_scale, 0.2)')
+open('scripts/battle/battle_effects.gd', 'w', encoding='utf-8').write(content)
+print("Fixed battle_effects.gd")

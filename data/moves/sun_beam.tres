@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="MoveData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/move_data.gd" id="1_move"]
+
+[resource]
+script = ExtResource("1_move")
+move_id = &"sun_beam"
+display_name = "Sun Beam"
+aspect_id = &"solar"
+power = 60
+accuracy = 90
+category = 0
+priority = 0
+stamina_cost = 0
+hook_id = &"damage_basic"

@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="MoveData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/move_data.gd" id="1_move"]
+
+[resource]
+script = ExtResource("1_move")
+move_id = &"sky_dive"
+display_name = "Sky Dive"
+description = "A devastating dive from the thermals, striking with the full force of gravity."
+aspect_id = &"solar"
+category = 0
+power = 65
+accuracy = 90
+priority = 0
+stamina_cost = 5
+hook_id = &"damage_basic"

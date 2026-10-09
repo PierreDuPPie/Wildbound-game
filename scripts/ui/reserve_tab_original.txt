@@ -1,0 +1,71 @@
+func _build_reserve_tab(parent: Control) -> void:
+	reserve_tab_panel = Control.new()
+	reserve_tab_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	parent.add_child(reserve_tab_panel)
+
+	reserve_count_label = Label.new()
+	reserve_count_label.position = Vector2(0, 4)
+	reserve_count_label.add_theme_font_size_override("font_size", 14)
+	reserve_count_label.add_theme_color_override("font_color", ACCENT_GOLD)
+	reserve_tab_panel.add_child(reserve_count_label)
+
+	var scroll := ScrollContainer.new()
+	scroll.position = Vector2(0, 32)
+	scroll.size = Vector2(840, 240)
+	reserve_tab_panel.add_child(scroll)
+
+	reserve_grid = GridContainer.new()
+	reserve_grid.columns = 6
+	reserve_grid.add_theme_constant_override("h_separation", 12)
+	reserve_grid.add_theme_constant_override("v_separation", 12)
+	scroll.add_child(reserve_grid)
+
+	var preview_panel := Panel.new()
+	preview_panel.position = Vector2(0, 282)
+	preview_panel.size = Vector2(840, 78)
+	var prev_style := StyleBoxFlat.new()
+	prev_style.bg_color = CARD_BG
+	prev_style.border_color = PANEL_BORDER
+	prev_style.set_border_width_all(2)
+	prev_style.corner_radius_top_left = 6
+	prev_style.corner_radius_top_right = 6
+	prev_style.corner_radius_bottom_left = 6
+	prev_style.corner_radius_bottom_right = 6
+	preview_panel.add_theme_stylebox_override("panel", prev_style)
+	reserve_tab_panel.add_child(preview_panel)
+
+	reserve_preview_label = Label.new()
+	reserve_preview_label.position = Vector2(16, 12)
+	reserve_preview_label.size = Vector2(500, 30)
+	reserve_preview_label.add_theme_font_size_override("font_size", 13)
+	reserve_preview_label.add_theme_color_override("font_color", TEXT_IVORY)
+	preview_panel.add_child(reserve_preview_label)
+
+	swap_warning_label = Label.new()
+	swap_warning_label.position = Vector2(16, 44)
+	swap_warning_label.add_theme_font_size_override("font_size", 11)
+	swap_warning_label.add_theme_color_override("font_color", ACCENT_ORANGE)
+	preview_panel.add_child(swap_warning_label)
+
+	favorite_btn = Button.new()
+	favorite_btn.text = "★ FAVORITE"
+	favorite_btn.position = Vector2(540, 20)
+	favorite_btn.size = Vector2(120, 36)
+	favorite_btn.pressed.connect(func() -> void:
+		if selected_reserve_index < PartyManager.reserve_storage.size():
+			PartyManager.toggle_favorite(PartyManager.reserve_storage[selected_reserve_index])
+			_refresh_reserve_tab()
+	)
+	preview_panel.add_child(favorite_btn)
+
+	swap_reserve_btn = Button.new()
+	swap_reserve_btn.text = "SWAP INTO PARTY"
+	swap_reserve_btn.position = Vector2(670, 20)
+	swap_reserve_btn.size = Vector2(150, 36)
+	swap_reserve_btn.pressed.connect(func() -> void:
+		if PartyManager.swap_party_and_reserve(selected_party_index, selected_reserve_index):
+			_refresh_reserve_tab()
+	)
+	preview_panel.add_child(swap_reserve_btn)
+
+# ------------------------------------------------------------------------------

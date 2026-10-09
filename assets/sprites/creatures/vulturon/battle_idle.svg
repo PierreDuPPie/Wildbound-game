@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="400" viewBox="0 0 512 400">
+  <defs>
+    <linearGradient id="mantle" x1="0" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#aaa184"/>
+      <stop offset="0.5" stop-color="#79725e"/>
+      <stop offset="1" stop-color="#4a4942"/>
+    </linearGradient>
+    <linearGradient id="feathers" x1="0" y1="0" x2="0.65" y2="1">
+      <stop offset="0" stop-color="#5a584f"/>
+      <stop offset="1" stop-color="#272d2b"/>
+    </linearGradient>
+    <linearGradient id="ruff" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f1e6c7"/>
+      <stop offset="1" stop-color="#b9ae91"/>
+    </linearGradient>
+    <linearGradient id="solar" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#f5d582"/>
+      <stop offset="1" stop-color="#ad7b38"/>
+    </linearGradient>
+  </defs>
+  <!-- Left-facing Cape vulture: layered flight feathers, pale neck and solar accents. -->
+  <ellipse cx="277" cy="373" rx="132" ry="13" fill="#26392b" opacity="0.18"/>
+  <g stroke="#242d2b" stroke-width="4" stroke-linejoin="round" stroke-linecap="round">
+    <!-- Far wing, fanned behind the shoulders. -->
+    <path d="M265 199 C284 137 330 88 359 46 L367 26 Q380 40 371 70 L385 38 Q400 49 385 87 L405 56 Q421 65 403 103 L425 79 Q440 90 418 119 L442 103 Q458 113 430 143 L455 130 Q469 145 438 164 L465 160 Q479 177 442 190 L466 194 Q472 211 434 216 L458 227 Q456 244 419 240 L436 259 Q424 273 397 255 L408 280 Q393 294 365 270 L362 293 C330 284 300 263 275 244 Z" fill="url(#feathers)"/>
+    <path d="M283 214 C305 154 338 112 366 73 C358 135 340 191 312 245 Z" fill="url(#mantle)"/>
+    <path d="M294 202 L344 109 M305 220 L370 138 M320 239 L399 177" fill="none" stroke="#979077" stroke-width="3" opacity="0.5"/>
+    <!-- Tail feathers and legs. -->
+    <path d="M313 271 L372 320 L348 323 L368 343 L341 340 L351 361 L318 344 L315 360 L286 319 Z" fill="url(#feathers)"/>
+    <path d="M238 288 L235 340 L208 351 L205 360 L233 357 L247 363 L263 359 L252 349 L252 289 Z" fill="#a69b7f"/>
+    <path d="M290 294 L296 343 L277 356 L280 363 L300 355 L322 363 L336 362 L326 353 L310 345 L309 290 Z" fill="#a69b7f"/>
+    <path d="M210 353 L201 359 M239 358 L243 366 M321 359 L324 367 M330 358 L341 362" fill="none" stroke="#e0d2ac" stroke-width="3"/>
+    <!-- Body, breast and overlapping coverts. -->
+    <path d="M196 157 C213 137 263 131 300 165 C337 191 350 240 329 283 C313 315 259 322 229 294 C204 269 180 201 196 157 Z" fill="url(#mantle)"/>
+    <path d="M211 182 C202 233 216 281 251 304 C230 304 216 286 206 268 C193 239 186 205 199 181 Z" fill="#d2c5a4" stroke="none"/>
+    <path d="M257 176 Q275 188 271 209 Q288 213 285 235 Q303 243 294 265 Q311 271 300 291 Q274 302 254 281 Q239 249 230 219 Z" fill="#86806a" stroke="#514f43" stroke-width="3"/>
+    <path d="M250 208 L261 211 M262 236 L276 237 M273 264 L286 264 M251 274 L261 280" fill="none" stroke="#bcb092" stroke-width="3"/>
+    <!-- Near wing swept outward, with fingered primaries. -->
+    <path d="M229 171 C206 154 169 133 146 112 C119 86 94 70 62 53 Q39 48 22 56 L72 82 L30 80 Q17 87 26 97 L86 111 L39 112 Q27 124 41 132 L105 143 L57 148 Q46 161 62 168 L129 173 L82 184 Q75 199 94 203 L156 200 L119 220 Q115 234 137 233 L188 216 L161 246 Q166 259 186 248 L220 224 Q249 203 229 171 Z" fill="url(#feathers)"/>
+    <path d="M214 175 C178 144 133 111 78 83 Q126 131 186 206 Z" fill="url(#mantle)"/>
+    <path d="M190 170 L89 101 M189 182 L109 132 M194 194 L131 162" fill="none" stroke="#bbb08d" stroke-width="3" opacity="0.5"/>
+    <path d="M76 82 L63 75 M91 111 L78 105 M110 141 L97 139 M134 173 L121 173 M157 200 L147 204" fill="none" stroke="url(#solar)" stroke-width="5"/>
+    <!-- Long pale neck, ruff and watchful hooked head. -->
+    <path d="M226 173 C224 146 215 121 203 109 C192 96 177 88 175 71 C170 47 185 30 209 32 C236 34 244 57 229 75 C221 91 238 111 245 131 L257 173 Z" fill="url(#ruff)"/>
+    <path d="M209 112 C217 123 225 145 226 168 L240 162 Q237 135 221 111" fill="#a8a28f" stroke="none"/>
+    <path d="M180 57 C173 57 165 62 154 67 L149 86 Q165 89 178 79 L190 74" fill="url(#solar)"/>
+    <path d="M151 79 L155 91 L165 86" fill="#343b36" stroke-width="3"/>
+    <path d="M185 49 Q197 41 215 46" fill="none" stroke="#fbf4d8" stroke-width="4"/>
+    <path d="M183 60 Q194 51 207 56" fill="none" stroke="#363b34" stroke-width="5"/>
+    <ellipse cx="194" cy="60" rx="6" ry="5" fill="#daab4e" stroke-width="2"/>
+    <ellipse cx="192" cy="60" rx="2.2" ry="3.4" fill="#202b27" stroke="none"/>
+    <circle cx="193" cy="58" r="1.4" fill="#fff6d8" stroke="none"/>
+    <path d="M197 75 Q212 82 218 76" fill="none" stroke="#827f6e" stroke-width="2"/>
+    <path d="M218 151 L207 163 L211 178 L199 182 L211 197 L217 188 L227 206 L237 191 L247 203 L254 187 L266 193 L265 173 L254 161 L246 167 L237 150 L229 163 Z" fill="url(#ruff)"/>
+    <path d="M216 178 Q236 187 256 177" fill="none" stroke="url(#solar)" stroke-width="5"/>
+    <path d="M230 188 L236 203 L245 189" fill="url(#solar)" stroke-width="2"/>
+  </g>
+</svg>

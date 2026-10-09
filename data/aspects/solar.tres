@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="AspectData" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/data/aspect_data.gd" id="1_aspect"]
+[resource]
+script = ExtResource("1_aspect")
+aspect_id = &"solar"
+display_name = "Solar"
+description = "Awareness, heat, speed and the alert energy of open daylight."
+strong_against = Array[StringName]([&"stone"])
+weak_against = Array[StringName]([&"earth"])

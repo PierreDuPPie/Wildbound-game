@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="InstinctData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/instinct_data.gd" id="1_inst"]
+
+[resource]
+script = ExtResource("1_inst")
+instinct_id = &"pursuit"
+display_name = "Pursuit"
+description = "Gains +25% Agility and +15% Critical Strike when opponent is below 50% HP."
+hook_id = &"pursuit_weakened_enemy"
+trigger_text = "Pursuit grants 25% Agility and a 15% critical chance against weakened prey."
+agility_modifier_percent = 0.25
+condition_stat = &"enemy_hp_under_50"
+power_modifier_percent = 0.0
+guard_modifier_percent = 0.0
+grants_fear_immune = false

@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="CreatureSpecies" load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/creature_species.gd" id="1_species"]
+[ext_resource type="Resource" path="res://data/aspects/solar.tres" id="2_aspect"]
+[ext_resource type="Resource" path="res://data/instincts/sentry.tres" id="3_instinct"]
+[ext_resource type="Resource" path="res://data/moves/meerkat_jab.tres" id="4_move"]
+[ext_resource type="Resource" path="res://data/moves/sun_skip.tres" id="5_move"]
+[ext_resource type="Resource" path="res://data/moves/ambush_pounce.tres" id="6_move"]
+[ext_resource type="Resource" path="res://data/moves/solar_flare.tres" id="7_move"]
+[ext_resource type="Script" path="res://scripts/data/aspect_data.gd" id="8_aspect_type"]
+[ext_resource type="Script" path="res://scripts/data/move_data.gd" id="9_move_type"]
+
+[resource]
+script = ExtResource("1_species")
+species_id = &"meerknight"
+atlas_number = 33
+display_name = "Meerknight"
+short_description = "A vigilant sentinel that stands guard over the colony. Its sun-forged armor gleams as it watches the horizon with unwavering discipline."
+rarity = &"rare"
+animal_inspiration = "Meerkat (Suricata suricatta)"
+habitat_tags = Array[StringName]([&"savannah", &"desert", &"rocky"])
+temperament_tags = Array[StringName]([&"vigilant", &"loyal", &"disciplined"])
+aspects = Array[ExtResource("8_aspect_type")]([ExtResource("2_aspect")])
+instinct = ExtResource("3_instinct")
+base_vitality = 72
+base_power = 62
+base_guard = 58
+base_agility = 85
+base_focus = 75
+base_instinct = 80
+growth_curve = &"steady"
+base_bond_difficulty = 35
+learnset = Array[ExtResource("9_move_type")]([ExtResource("4_move"), ExtResource("5_move"), ExtResource("6_move"), ExtResource("7_move")])

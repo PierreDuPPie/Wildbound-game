@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="CreatureSpecies" load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/creature_species.gd" id="1_species"]
+[ext_resource type="Resource" path="res://data/aspects/earth.tres" id="2_aspect"]
+[ext_resource type="Resource" path="res://data/instincts/sentry.tres" id="3_instinct"]
+[ext_resource type="Script" path="res://scripts/data/aspect_data.gd" id="5_aspect_type"]
+[ext_resource type="Script" path="res://scripts/data/move_data.gd" id="6_move_type"]
+[ext_resource type="Resource" path="res://data/moves/badger_bite.tres" id="m_badger_bite"]
+[ext_resource type="Resource" path="res://data/moves/scrap_swipe.tres" id="m_scrap_swipe"]
+[ext_resource type="Resource" path="res://data/moves/primal_roar.tres" id="m_primal_roar"]
+[ext_resource type="Resource" path="res://data/moves/ground_slam.tres" id="m_ground_slam"]
+
+[resource]
+script = ExtResource("1_species")
+species_id = &"baboonic"
+atlas_number = 16
+display_name = "Baboonic"
+short_description = "A highly social and intelligent primate that fiercely protects its troop. It uses loud barks to coordinate with allies."
+rarity = &"common"
+animal_inspiration = "Chacma Baboon (Papio ursinus)"
+habitat_tags = Array[StringName]([&"savannah", &"rocky", &"woodland"])
+temperament_tags = Array[StringName]([&"social", &"protective", &"loud"])
+aspects = Array[ExtResource("5_aspect_type")]([ExtResource("2_aspect")])
+instinct = ExtResource("3_instinct")
+base_vitality = 50
+base_power = 50
+base_guard = 45
+base_agility = 50
+base_focus = 35
+base_instinct = 45
+growth_curve = &"steady"
+base_bond_difficulty = 50
+learnset = Array[ExtResource("6_move_type")]([ExtResource("m_badger_bite"), ExtResource("m_scrap_swipe"), ExtResource("m_primal_roar"), ExtResource("m_ground_slam")])

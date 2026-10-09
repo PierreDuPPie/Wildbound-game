@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="MoveData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/move_data.gd" id="1_move"]
+
+[resource]
+script = ExtResource("1_move")
+move_id = &"dust_cloud"
+display_name = "Dust Cloud"
+description = "Kicks up a blinding cloud of dust, obscuring the battlefield and frustrating attackers."
+aspect_id = &"earth"
+category = 2
+power = 0
+accuracy = 100
+priority = 1
+stamina_cost = 2
+hook_id = &"guard_boost"

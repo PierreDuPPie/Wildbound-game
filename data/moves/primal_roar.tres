@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="MoveData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/move_data.gd" id="1_move"]
+
+[resource]
+script = ExtResource("1_move")
+move_id = &"primal_roar"
+display_name = "Primal Roar"
+description = "A deep, resonant bellow that stirs primal fury and sharpens killing instinct."
+aspect_id = &"earth"
+category = 2
+power = 0
+accuracy = 100
+priority = 0
+stamina_cost = 3
+hook_id = &"guard_boost"

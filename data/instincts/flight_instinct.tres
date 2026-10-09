@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="InstinctData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/instinct_data.gd" id="1_inst"]
+
+[resource]
+script = ExtResource("1_inst")
+instinct_id = &"flight_instinct"
+display_name = "Flight Instinct"
+description = "High evasion when below 40% HP."
+hook_id = &"flight_low_vitality_evasion"
+trigger_text = "Flight Instinct sharpens evasive movement below 40% vitality."
+condition_stat = &"hp_under_40"
+power_modifier_percent = 0.0
+guard_modifier_percent = 0.0
+grants_fear_immune = false

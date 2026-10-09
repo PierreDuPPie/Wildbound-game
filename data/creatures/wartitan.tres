@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="CreatureSpecies" load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/creature_species.gd" id="1_species"]
+[ext_resource type="Resource" path="res://data/aspects/earth.tres" id="2_aspect"]
+[ext_resource type="Resource" path="res://data/instincts/grit.tres" id="3_instinct"]
+[ext_resource type="Resource" path="res://data/moves/tusk_charge.tres" id="4_move"]
+[ext_resource type="Resource" path="res://data/moves/mud_sling.tres" id="5_move"]
+[ext_resource type="Resource" path="res://data/moves/stampede.tres" id="6_move"]
+[ext_resource type="Resource" path="res://data/moves/ground_slam.tres" id="7_move"]
+[ext_resource type="Script" path="res://scripts/data/aspect_data.gd" id="8_aspect_type"]
+[ext_resource type="Script" path="res://scripts/data/move_data.gd" id="9_move_type"]
+
+[resource]
+script = ExtResource("1_species")
+species_id = &"wartitan"
+atlas_number = 38
+display_name = "Wartitan"
+short_description = "An immovable fortress of mud, tusk, and stubborn will. It has survived things that would kill most creatures twice over."
+rarity = &"rare"
+animal_inspiration = "Common Warthog (Phacochoerus africanus)"
+habitat_tags = Array[StringName]([&"savannah", &"bushveld", &"mudflats"])
+temperament_tags = Array[StringName]([&"immovable", &"relentless", &"fearless"])
+aspects = Array[ExtResource("8_aspect_type")]([ExtResource("2_aspect")])
+instinct = ExtResource("3_instinct")
+base_vitality = 92
+base_power = 75
+base_guard = 85
+base_agility = 48
+base_focus = 42
+base_instinct = 70
+growth_curve = &"steady"
+base_bond_difficulty = 28
+learnset = Array[ExtResource("9_move_type")]([ExtResource("4_move"), ExtResource("5_move"), ExtResource("6_move"), ExtResource("7_move")])

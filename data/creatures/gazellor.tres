@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="CreatureSpecies" load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/creature_species.gd" id="1_species"]
+[ext_resource type="Resource" path="res://data/aspects/solar.tres" id="2_aspect"]
+[ext_resource type="Resource" path="res://data/instincts/flight_instinct.tres" id="3_instinct"]
+[ext_resource type="Resource" path="res://data/moves/sun_skip.tres" id="4_move"]
+[ext_resource type="Resource" path="res://data/moves/lookout_cry.tres" id="5_move"]
+[ext_resource type="Resource" path="res://data/moves/sun_dash.tres" id="6_move"]
+[ext_resource type="Resource" path="res://data/moves/morning_light.tres" id="7_move"]
+[ext_resource type="Script" path="res://scripts/data/aspect_data.gd" id="8_aspect_type"]
+[ext_resource type="Script" path="res://scripts/data/move_data.gd" id="9_move_type"]
+
+[resource]
+script = ExtResource("1_species")
+species_id = &"gazellor"
+atlas_number = 14
+display_name = "Gazellor"
+short_description = "An elegant sprinter with gilded horns that catch the sunlight. It outruns danger with grace and retaliates with dazzling solar bursts."
+rarity = &"uncommon"
+animal_inspiration = "Thomson's Gazelle (Eudorcas thomsonii)"
+habitat_tags = Array[StringName]([&"savannah", &"grassland", &"plains"])
+temperament_tags = Array[StringName]([&"alert", &"graceful", &"evasive"])
+aspects = Array[ExtResource("8_aspect_type")]([ExtResource("2_aspect")])
+instinct = ExtResource("3_instinct")
+base_vitality = 45
+base_power = 40
+base_guard = 35
+base_agility = 65
+base_focus = 40
+base_instinct = 45
+growth_curve = &"steady"
+base_bond_difficulty = 48
+learnset = Array[ExtResource("9_move_type")]([ExtResource("4_move"), ExtResource("5_move"), ExtResource("6_move"), ExtResource("7_move")])

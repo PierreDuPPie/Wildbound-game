@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="InstinctData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/instinct_data.gd" id="1_inst"]
+
+[resource]
+script = ExtResource("1_inst")
+instinct_id = &"pack_pressure"
+display_name = "Pack Pressure"
+description = "+20% Power per conscious ally."
+hook_id = &"pack_conscious_ally_power"
+trigger_text = "Pack Pressure draws Power from every conscious ally."
+condition_stat = &"allies_alive"
+power_modifier_percent = 0.2
+guard_modifier_percent = 0.0
+grants_fear_immune = false

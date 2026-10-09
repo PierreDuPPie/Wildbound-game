@@ -1,0 +1,36 @@
+[gd_resource type="Resource" script_class="CreatureSpecies" load_steps=11 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/creature_species.gd" id="1_species"]
+[ext_resource type="Resource" path="res://data/aspects/solar.tres" id="2_aspect"]
+[ext_resource type="Resource" path="res://data/instincts/sentry.tres" id="3_instinct"]
+[ext_resource type="Resource" path="res://data/moves/meerkat_jab.tres" id="4_move"]
+[ext_resource type="Resource" path="res://data/moves/sun_skip.tres" id="5_move"]
+[ext_resource type="Resource" path="res://data/moves/lookout_cry.tres" id="6_move"]
+[ext_resource type="Resource" path="res://data/moves/sun_dash.tres" id="7_move"]
+[ext_resource type="Script" path="res://scripts/data/aspect_data.gd" id="8_aspect_type"]
+[ext_resource type="Script" path="res://scripts/data/move_data.gd" id="9_move_type"]
+[ext_resource type="Resource" path="res://data/creatures/meerknight.tres" id="10_evolve"]
+
+[resource]
+script = ExtResource("1_species")
+species_id = &"meerkit"
+atlas_number = 2
+display_name = "Meerkit"
+short_description = "A bright-eyed lookout that treats every horizon like a puzzle to solve."
+rarity = &"common"
+animal_inspiration = "Meerkat (Suricata suricatta)"
+habitat_tags = Array[StringName]([&"savannah", &"scrub", &"burrow"])
+temperament_tags = Array[StringName]([&"alert", &"social", &"quick"])
+aspects = Array[ExtResource("8_aspect_type")]([ExtResource("2_aspect")])
+instinct = ExtResource("3_instinct")
+base_vitality = 44
+base_power = 38
+base_guard = 31
+base_agility = 58
+base_focus = 49
+base_instinct = 55
+growth_curve = &"steady"
+base_bond_difficulty = 38
+learnset = Array[ExtResource("9_move_type")]([ExtResource("4_move"), ExtResource("5_move"), ExtResource("6_move"), ExtResource("7_move")])
+evolves_into = ExtResource("10_evolve")
+evolution_level = 14
