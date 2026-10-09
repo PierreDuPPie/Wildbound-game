@@ -72,7 +72,7 @@ func _start_evolution_sequence() -> void:
 	creature_visual.setup(current_creature.species, true)
 	
 	_show_message("What? %s is evolving!" % old_name)
-	await get_tree().create_timer(1.5).timeout
+	await get_tree().create_timer(1.5, false).timeout
 	
 	var tw = create_tween()
 	for i in range(6):

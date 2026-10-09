@@ -1,6 +1,6 @@
 # Mobile controls and menus
 
-The existing Godot game now has touch controls, responsive interfaces and a browser export. These are implemented in the canonical `WILDBOUND_v0.4.0-3D-dev` project. Mobile gameplay is landscape-only. A native phone package has not been exported.
+The shared Godot game has contextual touch controls, responsive menus and an Android RC1 debug APK in `builds/WILDBOUND_Mobile_RC1_Debug.apk`. Mobile gameplay is landscape-only. The APK has not been tested on a real phone. See [the RC1 report](MOBILE_IMPLEMENTATION_REPORT.md) for build provenance and evidence.
 
 ## Try the controls on this computer
 
@@ -14,17 +14,21 @@ The preview forces touch mode for that run without saving the setting. In the re
 | --- | --- |
 | Left pad | Analog movement; a small drag walks slowly |
 | Interact | Gather, talk, rest or deliberately search grass |
-| Jump / Rise | Jump on foot; hold to rise in flight |
-| Sprint | Toggle sprint, gallop or faster flight; tap again to stop |
+| Jump / Rise | Jump on foot or while riding; hold Rise in flight |
+| Sprint | Toggle sprint or gallop; tap again to stop |
 | Ride / Dismount | Use an owned, conscious land companion with a saddle |
 | Fly / Land | Use an owned, conscious Vulturon with a flight harness |
 | Descend | Hold to lower flight altitude |
-| Camera | Switch camera view while on the ground |
-| Camp / Friends / Pack / Menu | Open the existing game interfaces |
-| Rotate / Place / Cancel | Position a selected building from Camp |
+| Menu → Camera View | Switch the existing automatic camera view |
+| Menu | Open Backpack, Camp & Build, Friends or Save & Settings |
+| Placement pad | Move a selected building's target while the keeper stays still |
+| Rotate / Place / Cancel | Rotate, confirm or cancel the construction preview |
+| Undo | Refund the latest placement within 12 seconds if no dependent progress changed |
 | Continue | Advance NPC dialogue |
 
-Movement and action buttons own separate fingers, so steering and jumping or rising work together. Sprint is a toggle so two thumbs can steer and jump. Menus, dialogue, scene changes, focus loss and orientation changes release held gameplay input. Battle command and selection buttons use the existing combat callbacks.
+Only relevant actions appear. Flight shows Rise, Descend and Land; unsafe landing disables Land and shows feedback. Movement and action buttons own separate fingers, so steering and jumping or rising work together. Sprint is a toggle. Menus, dialogue, scene changes, focus loss, suspension and orientation changes release held input. Battle uses the existing combat callbacks. Android Back closes the active menu or opens Settings from exploration.
+
+In Save & Settings, scroll to adjust joystick deadzone, graphics quality and camera follow response. Low/Medium target 30 FPS; High caps at 60. These caps are not measured phone performance. The camera follows automatically; drag orbit, pinch and inversion are not included.
 
 ## Layout behavior
 
@@ -38,8 +42,8 @@ Tests dispatch real `InputEventScreenTouch` events through the actual Godot cont
 
 | Suite | Headless | Rendered | Scope |
 | --- | --- | --- | --- |
-| Mobile acceptance | 60 passed | 68 passed | Bootstrap, two-finger movement/jump, analog walking, sprint, gather/save round-trip, landscape menus/dialogue, validated building placement, riding, flight, focus cleanup, portrait pause/input blocking and landscape resume |
-| Mobile menus | 31 passed | 40 passed | Six party members, reserve lists, real swap/item effects, scrolling, rotation and system menu callbacks |
+| Mobile acceptance | 55 passed | 63 passed | Bootstrap, two-finger movement/jump, analog walking, sprint, gather/save round-trip, landscape menus/dialogue, validated building placement, riding, flight, focus cleanup, portrait pause/input blocking and landscape resume |
+| Mobile menus | 44 passed | 53 passed | Six compact party cards, detail navigation, reserve lists, real swap/item effects, scrolling, rotation and system menu callbacks |
 | Mobile battle | 34 passed | 37 passed | Landscape/portrait command layout, retained battle selection flows and faint choices |
 
 Rendered counts include screenshot assertions. Logs and images are under `.qa`. See [tests/README.md](../tests/README.md) and [tests/MOBILE_MENU_TEST.md](../tests/MOBILE_MENU_TEST.md) for commands.
@@ -49,6 +53,8 @@ Desktop regressions were also rerun: 166 existing, 63 homestead, 47 structure/ph
 These results establish engine input behavior and phone-sized layouts on Windows. Independent menu and battle fixtures can still exercise portrait layout geometry without attaching an actual game session; the real Bootstrap acceptance test enforces landscape-only play. Physical phone performance, Safari audio and browser safe areas still need a device test. Godot's native touch-scrolling path cannot be fully exercised with the desktop display server.
 
 ## Browser build
+
+The public browser preview is the earlier mobile build. It has not been refreshed with Android RC1; deployment and hosted gameplay verification are separate evidence levels, recorded in the RC1 report.
 
 `export_presets.cfg` writes a single-threaded WebGL 2 compatibility export into `../sites/wildbound-play/dist`. Run `python tools/prepare_web_site.py` after export. This compresses the official engine to 10,054,758 bytes, verifies decompression matches the original, and records hashes in the Site checkout's `build-info.json`. The compressed engine and approximately 7.3 MB game pack stay below the host's per-file limit. The launch page decompresses WebAssembly through the modern browser's DecompressionStream API.
 

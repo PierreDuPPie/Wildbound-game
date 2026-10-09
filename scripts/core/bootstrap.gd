@@ -390,6 +390,8 @@ func _return_to_zone() -> void:
 		_load_route_3d(return_position)
 
 func _attach_exploration(zone: Node3D, zone_id: String) -> void:
+	if "backpack_ui" in zone and is_instance_valid(zone.backpack_ui):
+		zone.backpack_ui.progress_changed.connect(_on_backpack_progress_changed)
 	# Legacy pack/menu/dialogue share a layer. Keep them above the new HUD.
 	if "hud" in zone and zone.hud is CanvasLayer:
 		zone.hud.layer = 30
@@ -418,3 +420,9 @@ func save_progress() -> bool:
 	var player = active_scene.player
 	var safe_position: Vector3 = player.get_save_position() if player.has_method("get_save_position") else player.global_position
 	return SaveManager.save_game(PartyManager.to_save_dict(), current_zone, safe_position, player.rotation.y, demo_completed)
+
+func _on_backpack_progress_changed() -> void:
+	if not save_progress() and is_instance_valid(active_scene):
+		var exploration := active_scene.get_node_or_null("Exploration")
+		if exploration != null:
+			exploration.hud.toast("Changes are in memory, but saving failed. Keep the game open and retry Save.", 8.0)

@@ -6,6 +6,7 @@ signal changed
 signal resource_gathered(node_id: String, resource_id: String, amount: int)
 signal resource_node_ready(node_id: String)
 signal structure_placed(structure: Dictionary)
+signal structure_removed(structure_id: String)
 signal equipment_crafted(recipe_id: String)
 signal milestone_completed(milestone_id: String)
 
@@ -42,6 +43,9 @@ var harvested_nodes: Dictionary = {}
 var completed_milestones: Array[String] = []
 var world_time: float = 0.0
 var _next_structure_id: int = 1
+var _undo_before: Dictionary = {}
+var _undo_after: Dictionary = {}
+var _undo_structure_id: String = ""
 
 func _process(delta: float) -> void:
 	advance_time(delta)
@@ -166,6 +170,7 @@ func place_structure(recipe_id: String, zone_id: String, position: Vector3, rota
 	if not status["success"]:
 		return status
 	var recipe: Dictionary = get_recipe(recipe_id)
+	_undo_before = _placement_state()
 	var structure: Dictionary = {
 		"id": "structure_%06d" % _next_structure_id,
 		"recipe_id": recipe_id,
@@ -179,9 +184,34 @@ func place_structure(recipe_id: String, zone_id: String, position: Vector3, rota
 	var milestone: String = {"hut": "first_hut", "stable": "first_stable", "flight_perch": "first_perch", "house": "first_house"}.get(recipe_id, "")
 	if not milestone.is_empty():
 		_complete_milestone(milestone)
+	_undo_structure_id = structure["id"]
+	_undo_after = _placement_state()
 	structure_placed.emit(structure.duplicate(true))
 	changed.emit()
 	return {"success": true, "message": "%s built!" % recipe["label"], "structure": structure.duplicate(true)}
+
+## A short-lived UI offers this transaction only immediately after placement.
+## Refuse rollback after gathering/crafting/another state change: no lost gains,
+## duplicated refunds, or removal of a prerequisite used by a later purchase.
+func _placement_state() -> Dictionary:
+	return {"resources": resources.duplicate(true), "structures": structures.duplicate(true), "equipment": equipment.duplicate(), "harvested_nodes": harvested_nodes.duplicate(true), "completed_milestones": completed_milestones.duplicate()}
+
+func can_undo_last_structure() -> bool:
+	return not _undo_structure_id.is_empty() and _placement_state() == _undo_after
+
+func undo_last_structure() -> Dictionary:
+	if not can_undo_last_structure():
+		return _failure("The placement can no longer be undone.")
+	var removed_id := _undo_structure_id
+	resources = _undo_before["resources"].duplicate(true)
+	structures.assign(_undo_before["structures"])
+	completed_milestones.assign(_undo_before["completed_milestones"])
+	_undo_structure_id = ""
+	_undo_before.clear()
+	_undo_after.clear()
+	structure_removed.emit(removed_id)
+	changed.emit()
+	return {"success": true, "message": "Placement undone. Building resources returned."}
 
 func get_structures_for_zone(zone_id: String) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
@@ -206,6 +236,7 @@ func get_active_objective() -> String:
 	return "Expand your homestead, explore on your companions, and meet other rangers."
 
 func reset() -> void:
+	_undo_structure_id = ""
 	resources = {"wood": 0, "stone": 0, "fiber": 0, "crystals": 0}
 	structures.clear()
 	equipment.clear()
@@ -299,6 +330,7 @@ func load_from_save_dict(data: Dictionary) -> bool:
 			return false
 		next_milestones.append(milestone)
 	resources = next_resources
+	_undo_structure_id = ""
 	structures = next_structures
 	equipment = next_equipment
 	harvested_nodes = next_nodes

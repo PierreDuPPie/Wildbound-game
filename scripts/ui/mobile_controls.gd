@@ -8,6 +8,7 @@ const PREFERENCE_PATH := "user://interface.cfg"
 const DIRECTIONS := ["move_left", "move_right", "move_forward", "move_back"]
 var enabled: bool = false
 var mode: String = "auto"
+var joystick_deadzone: float = 0.12
 var root: Control
 var joystick: Control
 var action_bar: GridContainer
@@ -27,10 +28,13 @@ var _movement_deadzones: Dictionary = {}
 var _orientation_blocked: bool = false
 var _previous_pause: bool = false
 var _rotation_notice: Control
+var _pause_reasons: Dictionary = {}
+var _application_suspended: bool = false
 
 func _ready() -> void:
 	layer = 50
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	get_tree().quit_on_go_back = false
 	if OS.has_feature("android") or OS.has_feature("ios"):
 		DisplayServer.screen_set_orientation(DisplayServer.SCREEN_LANDSCAPE)
 	_original_scale_size = get_window().content_scale_size
@@ -43,6 +47,7 @@ func _ready() -> void:
 	if config.load(PREFERENCE_PATH) == OK:
 		mode = str(config.get_value("controls", "mode", "auto"))
 		if mode not in ["auto", "touch", "desktop"]: mode = "auto"
+		joystick_deadzone = clampf(float(config.get_value("controls", "joystick_deadzone", 0.12)), 0.05, 0.30)
 	if _preview: mode = "touch"
 	_build_controls()
 	_build_rotation_notice()
@@ -67,10 +72,22 @@ func set_mode(new_mode: String) -> void:
 	mode = new_mode
 	if not _preview:
 		var config := ConfigFile.new()
+		config.load(PREFERENCE_PATH)
 		config.set_value("controls", "mode", mode)
 		var result := config.save(PREFERENCE_PATH)
 		if result != OK: push_warning("Could not save control preference: " + error_string(result))
 	_apply_mode()
+
+func set_joystick_deadzone(value: float) -> void:
+	joystick_deadzone = clampf(value, 0.05, 0.30)
+	if is_instance_valid(joystick):
+		joystick.deadzone = joystick_deadzone
+		joystick.reset()
+	var config := ConfigFile.new()
+	config.load(PREFERENCE_PATH)
+	config.set_value("controls", "joystick_deadzone", joystick_deadzone)
+	var result := config.save(PREFERENCE_PATH)
+	if result != OK: push_warning("Could not save joystick preference: " + error_string(result))
 
 func _apply_mode() -> void:
 	release_all()
@@ -105,6 +122,7 @@ func _build_controls() -> void:
 	add_child(root)
 	joystick = JOYSTICK.new()
 	joystick.name = "MovementPad"
+	joystick.deadzone = joystick_deadzone
 	joystick.moved.connect(_steer)
 	root.add_child(joystick)
 	action_bar = GridContainer.new()
@@ -113,7 +131,7 @@ func _build_controls() -> void:
 	action_bar.add_theme_constant_override("h_separation", 8)
 	action_bar.add_theme_constant_override("v_separation", 8)
 	root.add_child(action_bar)
-	for id: String in ["interact", "jump", "sprint", "ride", "fly", "descend", "rotate", "place", "cancel", "continue", "camera"]:
+	for id: String in ["interact", "jump", "sprint", "ride", "fly", "descend", "rotate", "place", "cancel", "continue", "camera", "undo"]:
 		var button: Button = TOUCH_BUTTON.new()
 		button.name = id.capitalize()
 		button.text = id.capitalize()
@@ -179,13 +197,7 @@ func _update_orientation_gate() -> bool:
 		portrait = bool(JavaScriptBridge.eval("window.wildbound && window.wildbound.orientationBlocked === true"))
 	if portrait != _orientation_blocked:
 		_orientation_blocked = portrait
-		if portrait:
-			_previous_pause = get_tree().paused
-			release_all()
-			get_tree().paused = true
-		else:
-			get_tree().paused = _previous_pause
-			_context_signature = ""
+		_set_pause_reason("orientation", portrait)
 		if OS.has_feature("web"):
 			JavaScriptBridge.eval("document.getElementById('canvas').dataset.gamePaused = '%s'" % str(get_tree().paused))
 	# Browser chrome supplies the notice before the engine starts as well.
@@ -198,7 +210,7 @@ func _position_actions() -> void:
 	action_bar.position = safe_rect().end - action_bar.size - Vector2(4, 4)
 
 func _process(_delta: float) -> void:
-	if _update_orientation_gate():
+	if _update_orientation_gate() or _application_suspended:
 		_set_context("", null)
 		return
 	if not enabled or not is_instance_valid(_bootstrap) or not is_instance_valid(_bootstrap.active_scene):
@@ -210,7 +222,7 @@ func _process(_delta: float) -> void:
 	var scene: Node = _bootstrap.active_scene
 	var exploration: Node = scene.get_node_or_null("Exploration")
 	if exploration == null:
-		_set_context("", null)
+		_set_context("battle", null)
 		return
 	var next_context := "explore"
 	if "dialogue_panel" in scene and is_instance_valid(scene.dialogue_panel) and scene.dialogue_panel.visible:
@@ -221,24 +233,45 @@ func _process(_delta: float) -> void:
 		next_context = "build"
 	elif not exploration.player.movement_enabled:
 		next_context = ""
+	elif exploration.player.is_flying():
+		next_context = "flying"
+	elif exploration.player.is_mounted():
+		next_context = "riding"
 	_set_context(next_context, exploration)
+	if next_context == "flying" and exploration.player.has_method("get_landing_status"):
+		var landing: Dictionary = exploration.player.get_landing_status()
+		buttons["fly"].disabled = not landing.get("safe", false) and not exploration.player._landing_requested
+		buttons["fly"].text = "Stop land" if exploration.player._landing_requested else "Land"
 
 func _set_context(next_context: String, exploration: Node) -> void:
 	var flying: bool = exploration != null and exploration.player.is_flying()
 	var mounted: bool = exploration != null and exploration.player.is_mounted()
-	var signature := "%s:%s:%s" % [next_context, flying, mounted]
+	var ride_ready: bool = exploration != null and exploration.homestead.has_upgrade("saddle")
+	var fly_ready: bool = exploration != null and exploration.homestead.has_upgrade("glider_harness")
+	var undo_ready: bool = exploration != null and exploration.has_method("can_undo_build") and exploration.can_undo_build()
+	var signature := "%s:%s:%s:%s:%s:%s" % [next_context, flying, mounted, ride_ready, fly_ready, undo_ready]
 	if _context_signature == signature: return
 	_context_signature = signature
 	if context != next_context:
 		release_all()
 	context = next_context
-	root.visible = enabled and context in ["explore", "build", "dialogue"]
-	joystick.visible = context in ["explore", "build"]
+	root.visible = enabled and context in ["explore", "riding", "flying", "build", "dialogue"]
+	joystick.visible = context in ["explore", "riding", "flying", "build"]
+	joystick.tooltip_text = "Move placement target" if context == "build" else "Move"
 	for id: String in buttons:
 		buttons[id].visible = false
+		buttons[id].disabled = false
 	var actions: Array[String] = []
 	if context == "explore":
-		actions = ["interact", "jump", "sprint", "ride", "fly", "descend" if flying else "camera"]
+		actions = ["interact", "jump", "sprint"]
+		if ride_ready: actions.append("ride")
+		if fly_ready: actions.append("fly")
+		if undo_ready: actions.append("undo")
+	elif context == "riding":
+		actions = ["interact", "jump", "ride", "sprint"]
+		if fly_ready: actions.append("fly")
+	elif context == "flying":
+		actions = ["jump", "descend", "fly"]
 	elif context == "build":
 		actions = ["rotate", "place", "cancel"]
 	elif context == "dialogue":
@@ -252,7 +285,10 @@ func _set_context(next_context: String, exploration: Node) -> void:
 	_position_actions.call_deferred()
 
 func _steer(direction: Vector2) -> void:
-	if not enabled or context not in ["explore", "build"]:
+	var exploration := _get_exploration()
+	if exploration != null and exploration.has_method("set_mobile_build_direction"):
+		exploration.set_mobile_build_direction(direction if enabled and context == "build" else Vector2.ZERO)
+	if not enabled or context not in ["explore", "riding", "flying"]:
 		direction = Vector2.ZERO
 	var strengths := [maxf(0, -direction.x), maxf(0, direction.x), maxf(0, -direction.y), maxf(0, direction.y)]
 	for index: int in range(DIRECTIONS.size()):
@@ -265,7 +301,12 @@ func _steer(direction: Vector2) -> void:
 			_movement.erase(action)
 
 func _button_changed(id: String, held: bool) -> void:
-	if held and (not enabled or not root.visible or not buttons[id].visible): return
+	if held and (not enabled or not root.visible or not buttons[id].visible or buttons[id].disabled): return
+	if id == "undo":
+		var exploration := _get_exploration()
+		if held and exploration != null and exploration.has_method("undo_last_build"):
+			exploration.undo_last_build()
+		return
 	if id == "sprint":
 		if held:
 			_sprinting = not _sprinting
@@ -307,3 +348,62 @@ func release_all() -> void:
 func _notification(what: int) -> void:
 	if what in [NOTIFICATION_APPLICATION_FOCUS_OUT, NOTIFICATION_APPLICATION_PAUSED]:
 		release_all()
+	if OS.has_feature("android") or OS.has_feature("ios"):
+		if what == NOTIFICATION_APPLICATION_PAUSED:
+			set_application_suspended(true)
+		elif what == NOTIFICATION_APPLICATION_RESUMED:
+			set_application_suspended(false)
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		handle_back()
+
+func _get_exploration() -> Node:
+	if not is_instance_valid(_bootstrap) or not is_instance_valid(_bootstrap.active_scene): return null
+	return _bootstrap.active_scene.get_node_or_null("Exploration")
+
+func _set_pause_reason(reason: String, active: bool) -> void:
+	if active:
+		if _pause_reasons.has(reason): return
+		if _pause_reasons.is_empty(): _previous_pause = get_tree().paused
+		_pause_reasons[reason] = true
+		release_all()
+		get_tree().paused = true
+	else:
+		if not _pause_reasons.has(reason): return
+		_pause_reasons.erase(reason)
+		if _pause_reasons.is_empty(): get_tree().paused = _previous_pause
+	_context_signature = ""
+
+func set_application_suspended(suspended: bool) -> void:
+	# Save once before pausing; Bootstrap rejects battle/transition scenes and
+	# SaveManager keeps the previous valid save until replacement succeeds.
+	if _application_suspended == suspended: return
+	_application_suspended = suspended
+	release_all()
+	if suspended and is_instance_valid(_bootstrap) and not _bootstrap.is_transitioning and _get_exploration() != null:
+		if not _bootstrap.save_progress():
+			_get_exploration().hud.toast("Progress could not be saved. Retry Save in the menu after returning.", 8.0)
+	_set_pause_reason("background", suspended)
+	if not suspended: refresh_context()
+
+func handle_back() -> bool:
+	if _orientation_blocked or _application_suspended: return true
+	var exploration := _get_exploration()
+	if exploration == null: return true # Battles keep their explicit Run/back commands.
+	release_all()
+	var scene: Node = exploration.zone
+	for property: String in ["system_menu_ui", "backpack_ui"]:
+		if property in scene:
+			var menu: Control = scene.get(property)
+			if is_instance_valid(menu) and menu.visible:
+				if menu.has_method("handle_back"): menu.handle_back()
+				else: menu.close()
+				return true
+	if "dialogue_panel" in scene and is_instance_valid(scene.dialogue_panel) and scene.dialogue_panel.visible:
+		if scene.has_method("close_dialogue"): scene.close_dialogue()
+	elif not exploration.hud.current_modal.is_empty():
+		exploration.hud.close_modal()
+	elif not exploration.build_recipe.is_empty():
+		exploration.cancel_build()
+	else:
+		exploration.hud._open_legacy("menu")
+	return true

@@ -45,7 +45,19 @@ This uses the actual Vulkan renderer, actual Bootstrap/regions/HUD, physical pla
 
 The `--mobile-preview` argument prevents these runs from changing the saved interface preference. Keep the isolated APPDATA assignment shown above. Run rendered suites separately, so another window cannot interrupt a held-input test.
 
-Mobile acceptance passes 60 headless / 68 rendered checks; menus pass 31 / 40, and battles pass 34 / 37. The real Bootstrap test blocks portrait input, freezes player physics, clears a held joystick on rotation and resumes play in landscape. It also round-trips gathering and construction through its own JSON save. Independent menu/battle fixtures retain portrait geometry checks; no actual game is attached to the menu fixture. The menu scene verifies real roster swaps and healing/consumption. See [MOBILE_MENU_TEST.md](MOBILE_MENU_TEST.md) for the full menu fixture.
+Mobile acceptance passes 55 headless / 63 rendered checks; menus pass 44 / 53, and battles pass 34 / 37. The real Bootstrap test blocks portrait input, freezes player physics, clears a held joystick on rotation and resumes play in landscape. It also round-trips gathering and construction through its own JSON save. Independent menu/battle fixtures retain portrait geometry checks; no actual game is attached to the menu fixture. The menu scene verifies real roster swaps and healing/consumption. See [MOBILE_MENU_TEST.md](MOBILE_MENU_TEST.md) for the full menu fixture.
+
+RC1 adds the following checks. Keep the isolated APPDATA setting and run write/reopen in this order:
+
+```powershell
+& $engine --headless --path . res://tests/rc1_touch_hud.tscn -- --mobile-preview
+& $engine --headless --path . res://tests/rc1_world.tscn -- --mobile-preview
+& $engine --headless --path . res://tests/rc1_battle_pause.tscn -- --mobile-preview
+& $engine --headless --path . res://tests/rc1_integration.tscn -- --mobile-preview
+& $engine --headless --path . res://tests/rc1_integration.tscn -- --mobile-preview --rc1-read
+```
+
+Results: touch/HUD/lifecycle 29 headless / 30 rendered; construction/landing 23; battle pause/resume 5; autosave 18 then fresh-process reopen 7; all zero failures. Details and exact final logs are in [the RC1 implementation report](../docs/MOBILE_IMPLEMENTATION_REPORT.md). Real-device checks remain in [MOBILE_ACCEPTANCE_CHECKLIST.md](MOBILE_ACCEPTANCE_CHECKLIST.md).
 
 Rendered verification covers Windows Godot at phone-sized resolutions. It does not prove performance or finger scrolling on a physical phone, or browser export compatibility. See [mobile implementation and limits](../docs/MOBILE_CONTROLS.md).
 

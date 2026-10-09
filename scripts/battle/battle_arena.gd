@@ -686,6 +686,7 @@ func _on_switch_needed(fainted: CreatureInstance) -> void:
 		_remember_button(btn, Vector2(430, 36), 13, touch_text)
 		var captured: CreatureInstance = creature
 		btn.pressed.connect(func() -> void:
+			if not faint_modal.visible or not manager._waiting_faint_replacement: return
 			faint_modal.visible = false
 			manager.player_faint_switch(captured)
 		)
@@ -836,7 +837,7 @@ func _on_wildbond_succeeded(creature: CreatureInstance) -> void:
 
 func _on_battle_finished(reason: StringName) -> void:
 	_on_locked(true)
-	await get_tree().create_timer(0.65).timeout
+	await get_tree().create_timer(0.65, false).timeout
 	battle_closed.emit(reason)
 
 func _unhandled_input(event: InputEvent) -> void:

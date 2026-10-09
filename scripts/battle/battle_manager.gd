@@ -93,7 +93,7 @@ func player_guard() -> void:
 	turn_number += 1
 	player_guarding = true
 	battle_log.emit("%s braces for the hit." % player.display_name())
-	await get_tree().create_timer(0.35).timeout
+	await get_tree().create_timer(0.35, false).timeout
 	await _enemy_turn()
 
 func player_use_item(message: String = "") -> void:
@@ -105,7 +105,7 @@ func player_use_item(message: String = "") -> void:
 		battle_log.emit(message)
 	else:
 		battle_log.emit("You used an item.")
-	await get_tree().create_timer(0.35).timeout
+	await get_tree().create_timer(0.35, false).timeout
 	await _enemy_turn()
 
 func player_run() -> void:
@@ -118,7 +118,7 @@ func player_run() -> void:
 	_set_state(State.RESOLVING)
 	battle_log.emit("You slip away safely back to the overworld.")
 	_set_state(State.ESCAPED)
-	await get_tree().create_timer(0.45).timeout
+	await get_tree().create_timer(0.45, false).timeout
 	battle_finished.emit(&"ran")
 
 func player_voluntary_switch(new_creature: CreatureInstance) -> void:
@@ -132,10 +132,12 @@ func player_voluntary_switch(new_creature: CreatureInstance) -> void:
 	hp_changed.emit(&"player", player.current_vitality, player.max_vitality())
 	battle_log.emit("You switched to %s!" % player.display_name())
 	_emit_opening_sentry(&"player", player)
-	await get_tree().create_timer(0.55).timeout
+	await get_tree().create_timer(0.55, false).timeout
 	await _enemy_turn()
 
 func player_faint_switch(new_creature: CreatureInstance) -> void:
+	if not _waiting_faint_replacement or state != State.RESOLVING or not PartyManager.party.has(new_creature):
+		return
 	if new_creature == null or not new_creature.is_conscious():
 		return
 	_waiting_faint_replacement = false
@@ -145,7 +147,7 @@ func player_faint_switch(new_creature: CreatureInstance) -> void:
 	hp_changed.emit(&"player", player.current_vitality, player.max_vitality())
 	battle_log.emit("Go, %s!" % player.display_name())
 	_emit_opening_sentry(&"player", player)
-	await get_tree().create_timer(0.4).timeout
+	await get_tree().create_timer(0.4, false).timeout
 	if state not in [State.VICTORY, State.DEFEAT, State.BONDED, State.ESCAPED, State.ENDED]:
 		_set_state(State.PLAYER_TURN)
 
@@ -159,7 +161,7 @@ func player_wildbond() -> void:
 	var difficulty: float = float(enemy.species.base_bond_difficulty) / 100.0 if enemy.species != null and "base_bond_difficulty" in enemy.species else 0.5
 	var chance: float = clampf(0.12 + (missing_ratio * 0.68) + ((1.0 - difficulty) * 0.24), 0.08, 0.92)
 	battle_log.emit("You reach out with the Resonance Band…")
-	await get_tree().create_timer(0.55).timeout
+	await get_tree().create_timer(0.55, false).timeout
 	if rng.randf() <= chance:
 		if PartyManager.party.size() >= 6:
 			battle_log.emit("Party is full (6/6). Bond formed but creature will be sent to Sanctuary storage!")
@@ -169,12 +171,12 @@ func player_wildbond() -> void:
 		enemy.is_wild = false
 		_set_state(State.BONDED)
 		wildbond_succeeded.emit(enemy)
-		await get_tree().create_timer(0.7).timeout
+		await get_tree().create_timer(0.7, false).timeout
 		battle_finished.emit(&"bonded")
 		return
 	battle_log.emit("%s pulls away from the resonance." % enemy.display_name())
 	wildbond_failed.emit(chance)
-	await get_tree().create_timer(0.35).timeout
+	await get_tree().create_timer(0.35, false).timeout
 	await _enemy_turn()
 
 func _resolve_player_action(move: MoveData, guarded: bool) -> void:
@@ -217,7 +219,7 @@ func _enemy_turn() -> void:
 	enemy_guarding = rng.randf() < 0.15
 	if enemy_guarding:
 		battle_log.emit("%s digs in defensively." % enemy.display_name())
-		await get_tree().create_timer(0.35).timeout
+		await get_tree().create_timer(0.35, false).timeout
 	else:
 		await _perform_move(&"enemy", enemy, player, move, player_guarding)
 	player_guarding = false
@@ -231,17 +233,17 @@ func _perform_move(side: StringName, attacker: CreatureInstance, defender: Creat
 		return
 	battle_log.emit("%s used %s!" % [attacker.display_name(), move.display_name])
 	attack_performed.emit(side)
-	await get_tree().create_timer(0.32).timeout
+	await get_tree().create_timer(0.32, false).timeout
 	if rng.randi_range(1, 100) > move.accuracy:
 		battle_log.emit("It missed!")
 		_award_attack_xp(side, attacker, 0)
-		await get_tree().create_timer(0.28).timeout
+		await get_tree().create_timer(0.28, false).timeout
 		return
 		
 	if move.category == MoveData.MoveCategory.STATUS:
 		_perform_support_move(side, attacker, move)
 		_award_attack_xp(side, attacker, 0)
-		await get_tree().create_timer(0.35).timeout
+		await get_tree().create_timer(0.35, false).timeout
 		return
 
 	# Flight Instinct: evasion check for defender below 40% HP
@@ -253,7 +255,7 @@ func _perform_move(side: StringName, attacker: CreatureInstance, defender: Creat
 				instinct_activated.emit(defender_side, defender, defender.species.instinct.instinct_id, defender.species.instinct.trigger_text)
 			battle_log.emit("%s dodged the attack!" % defender.display_name())
 			_award_attack_xp(side, attacker, 0)
-			await get_tree().create_timer(0.28).timeout
+			await get_tree().create_timer(0.28, false).timeout
 			return
 
 	var attack_power: float = attacker.effective_power() * _stat_multiplier(attacker, &"power")
@@ -315,7 +317,7 @@ func _perform_move(side: StringName, attacker: CreatureInstance, defender: Creat
 	if move.hook_id == &"drop_agility" and defender.is_conscious():
 		_change_stat_stage(defender, &"agility", -1)
 	_award_attack_xp(side, attacker, damage)
-	await get_tree().create_timer(0.35).timeout
+	await get_tree().create_timer(0.35, false).timeout
 
 func _perform_support_move(side: StringName, creature: CreatureInstance, move: MoveData) -> void:
 	match move.hook_id:

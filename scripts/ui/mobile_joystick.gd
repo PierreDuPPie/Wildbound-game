@@ -4,6 +4,7 @@ signal moved(direction: Vector2)
 var finger: int = -1
 var direction := Vector2.ZERO
 var mouse_dragging: bool = false
+var deadzone: float = 0.12
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -46,7 +47,8 @@ func _gui_input(event: InputEvent) -> void:
 func _update_direction(point: Vector2) -> void:
 	var radius := minf(size.x, size.y) * 0.36
 	var offset := point - get_global_rect().get_center()
-	var strength := clampf((offset.length() / radius - 0.12) / 0.88, 0.0, 1.0)
+	var threshold := clampf(deadzone, 0.05, 0.30)
+	var strength := clampf((offset.length() / radius - threshold) / (1.0 - threshold), 0.0, 1.0)
 	direction = offset.normalized() * strength if offset.length() > 0.0 else Vector2.ZERO
 	moved.emit(direction)
 	queue_redraw()

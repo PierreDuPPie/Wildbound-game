@@ -530,6 +530,7 @@ func _build_grass_zones() -> void:
 		area.body_exited.connect(_on_grass_body_exited)
 		
 		var multimesh_instance = MultiMeshInstance3D.new()
+		multimesh_instance.add_to_group("quality_grass")
 		var multimesh = MultiMesh.new()
 		multimesh.transform_format = MultiMesh.TRANSFORM_3D
 		multimesh.use_colors = true

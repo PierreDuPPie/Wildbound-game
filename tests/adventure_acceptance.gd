@@ -33,6 +33,7 @@ func frames(count: int) -> void:
 	await get_tree().process_frame
 
 func _run() -> void:
+	MobileControls.set_mode("desktop")
 	DirAccess.make_dir_recursive_absolute("res://.qa")
 	_original_save_path = SaveManager.save_path
 	SaveManager.save_path = QA_PATH
@@ -236,6 +237,7 @@ func _move_to(position: Vector3) -> void:
 	await frames(3)
 
 func _build_in_clear_spot(recipe_id: String) -> bool:
+	await get_tree().create_timer(0.5).timeout # Separate deliberate placements from the double-tap guard.
 	if not check(homestead.get_craft_status(recipe_id).success, "Recipe requirements and gathered cost allow " + recipe_id):
 		return false
 	exploration.hud.open_camp()

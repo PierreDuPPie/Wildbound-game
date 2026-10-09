@@ -3,6 +3,7 @@ extends Control
 const UI = preload("res://scripts/ui/frontier_theme.gd")
 
 signal closed
+signal progress_changed
 
 # Color Palette
 const BG_DARK = Color("#1b261d")
@@ -57,6 +58,14 @@ var _item_cancel: Button
 var _swap_title: Label
 var _swap_blocker: ColorRect
 var _item_blocker: ColorRect
+var _party_details_open := false
+var _party_back: Button
+var _party_favorite: Button
+var _party_store: Button
+var _party_extra: Label
+var _party_heading: Label
+var _transfer_busy := false
+
 var _layout_width: float = 840.0
 var _layout_portrait: bool = false
 
@@ -80,6 +89,7 @@ func _ready() -> void:
 func open() -> void:
 	_apply_layout()
 	visible = true
+	_party_details_open = false
 	selected_party_index = 0
 	selected_reserve_index = 0
 	_set_tab(&"party")
@@ -89,6 +99,7 @@ func open() -> void:
 func open_reserve() -> void:
 	_apply_layout()
 	visible = true
+	_party_details_open = false
 	selected_party_index = 0
 	selected_reserve_index = 0
 	_set_tab(&"reserve")
@@ -100,13 +111,27 @@ func close() -> void:
 	closed.emit()
 	MobileControls.refresh_context()
 
+func handle_back() -> bool:
+	if not visible:
+		return false
+	if item_use_modal.visible:
+		item_use_modal.hide()
+	elif reserve_swap_modal.visible:
+		reserve_swap_modal.hide()
+	elif current_tab == &"party" and _party_details_open and MobileControls.enabled:
+		_party_details_open = false
+		_update_party_visibility()
+	else:
+		close()
+	return true
+
 func _unhandled_input(event: InputEvent) -> void:
 	if not visible:
 		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		var key: Key = event.keycode
 		if key == KEY_Q or key == KEY_B or key == KEY_ESCAPE:
-			close()
+			handle_back()
 			get_viewport().set_input_as_handled()
 		elif current_tab == &"party" and key >= KEY_1 and key <= KEY_6:
 			var idx: int = key - KEY_1
@@ -117,6 +142,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _set_tab(tab_name: StringName) -> void:
 	current_tab = tab_name
+	_party_details_open = false
 	party_tab_panel.visible = (current_tab == &"party")
 	reserve_tab_panel.visible = (current_tab == &"reserve")
 	gear_tab_panel.visible = (current_tab == &"gear")
@@ -242,7 +268,13 @@ func _build_party_tab(parent: Control) -> void:
 	var tab := _tab_body(parent)
 	party_tab_panel = tab[0]
 	var body: VBoxContainer = tab[1]
-	body.add_child(_label("YOUR PARTY · MAX 6", 18, ACCENT_GOLD))
+	_party_heading = _label("YOUR PARTY · MAX 6", 18, ACCENT_GOLD)
+	body.add_child(_party_heading)
+	_party_back = _touch_button("BACK TO PARTY", func() -> void:
+		_party_details_open = false
+		_update_party_visibility()
+	)
+	body.add_child(_party_back)
 	party_list_vbox = GridContainer.new()
 	party_list_vbox.columns = 2
 	party_list_vbox.add_theme_constant_override("h_separation", 12)
@@ -281,10 +313,19 @@ func _build_party_tab(parent: Control) -> void:
 	set_lead_btn = _touch_button("SET AS LEAD", func() -> void:
 		if PartyManager.set_lead(selected_party_index):
 			selected_party_index = 0
+			progress_changed.emit()
 			_refresh_party_tab()
 	)
 	set_lead_btn.position = Vector2(16, 314)
 	_party_card.add_child(set_lead_btn)
+	_party_favorite = _touch_button("FAVORITE", func() -> void:
+		PartyManager.toggle_favorite(PartyManager.party[selected_party_index])
+		progress_changed.emit()
+		_refresh_party_tab()
+	)
+	_party_card.add_child(_party_favorite)
+	_party_store = _touch_button("MOVE TO RESERVE", _store_selected_creature)
+	_party_card.add_child(_party_store)
 
 	_stats_card = _card_panel()
 	_stats_card.custom_minimum_size.y = 394
@@ -305,6 +346,9 @@ func _build_party_tab(parent: Control) -> void:
 	instinct_desc_label.position = Vector2(16, 268)
 	instinct_desc_label.size.y = 112
 	_stats_card.add_child(instinct_desc_label)
+	_party_extra = _label("", 18)
+	_stats_card.add_child(_party_extra)
+	_party_extra.minimum_size_changed.connect(func() -> void: _layout_party_details.call_deferred())
 	_party_card.resized.connect(_layout_party_details)
 	_stats_card.resized.connect(_layout_party_details)
 	for label in [species_quote_label, detail_header_label, aspect_instinct_label, instinct_desc_label]:
@@ -335,6 +379,7 @@ func _build_reserve_tab(parent: Control) -> void:
 	favorite_btn = _touch_button("FAVORITE", func() -> void:
 		if selected_reserve_index < PartyManager.reserve_storage.size():
 			PartyManager.toggle_favorite(PartyManager.reserve_storage[selected_reserve_index])
+			progress_changed.emit()
 			_refresh_reserve_tab()
 	)
 	favorite_btn.position = Vector2(16, 170)
@@ -375,17 +420,40 @@ func _build_swap_modal() -> void:
 func _show_action_feedback(msg: String) -> void:
 	action_feedback_label.text = msg
 	action_feedback_label.visible = true
-	var timer: SceneTreeTimer = get_tree().create_timer(3.0)
+	var timer: SceneTreeTimer = get_tree().create_timer(3.0, false)
 	timer.timeout.connect(func(): action_feedback_label.visible = false)
 
 func _on_swap_reserve_pressed() -> void:
+	if _transfer_busy or selected_reserve_index < 0 or selected_reserve_index >= PartyManager.reserve_storage.size() or not PartyManager.can_swap_in_current_location():
+		return
 	if PartyManager.party.size() < 6:
 		var c = PartyManager.reserve_storage[selected_reserve_index]
 		if PartyManager.move_to_party(selected_reserve_index):
+			_transfer_busy = true
+			_release_transfer_guard.call_deferred()
+			progress_changed.emit()
 			_show_action_feedback("%s moved to your active party." % c.display_name())
 			_refresh_all()
 	else:
 		_open_swap_modal()
+
+func _release_transfer_guard() -> void:
+	await get_tree().create_timer(0.3, false).timeout
+	_transfer_busy = false
+
+func _store_selected_creature() -> void:
+	if _transfer_busy or selected_party_index >= PartyManager.party.size():
+		return
+	var creature: CreatureInstance = PartyManager.party[selected_party_index]
+	if PartyManager.party.size() <= 1 or (creature.is_conscious() and not PartyManager.has_other_conscious_creature(creature)):
+		return
+	if PartyManager.move_to_reserve(selected_party_index):
+		_transfer_busy = true
+		_release_transfer_guard.call_deferred()
+		_party_details_open = false
+		selected_party_index = 0
+		progress_changed.emit()
+		_refresh_all()
 
 func _open_swap_modal() -> void:
 	for child in swap_modal_vbox.get_children():
@@ -400,8 +468,13 @@ func _open_swap_modal() -> void:
 		btn.text = "Swap with %s Lv.%d (HP: %d/%d)" % [c.display_name(), c.level, c.current_vitality, c.max_vitality()]
 		var idx = i
 		btn.pressed.connect(func():
+			if _transfer_busy or not reserve_swap_modal.visible or selected_reserve_index >= PartyManager.reserve_storage.size():
+				return
 			var r_c: CreatureInstance = PartyManager.reserve_storage[selected_reserve_index]
 			if PartyManager.swap_party_and_reserve(idx, selected_reserve_index):
+				_transfer_busy = true
+				_release_transfer_guard.call_deferred()
+				progress_changed.emit()
 				reserve_swap_modal.visible = false
 				_show_action_feedback("%s swapped with %s." % [r_c.display_name(), c.display_name()])
 				_refresh_all()
@@ -475,7 +548,7 @@ func _show_gear_feedback(msg: String, success: bool = true) -> void:
 	gear_feedback_label.text = msg
 	gear_feedback_label.add_theme_color_override("font_color", Color(0.5, 1.0, 0.5) if success else ACCENT_ORANGE)
 	gear_feedback_label.visible = true
-	var timer: SceneTreeTimer = get_tree().create_timer(3.0)
+	var timer: SceneTreeTimer = get_tree().create_timer(3.0, false)
 	timer.timeout.connect(func() -> void:
 		if is_instance_valid(gear_feedback_label):
 			gear_feedback_label.visible = false
@@ -717,8 +790,38 @@ func _refresh_party_tab() -> void:
 		var idx: int = i
 		btn.pressed.connect(func() -> void:
 			selected_party_index = idx
+			_party_details_open = true
 			_refresh_party_tab()
+			party_tab_panel.scroll_vertical = 0
 		)
+		if MobileControls.enabled:
+			btn.text = ""
+			btn.custom_minimum_size.y = 100
+			var row := HBoxContainer.new()
+			row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			btn.add_child(row)
+			row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			row.offset_left = 10
+			row.offset_right = -10
+			row.offset_top = 8
+			row.offset_bottom = -8
+			var image := TextureRect.new()
+			image.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			image.custom_minimum_size = Vector2(48, 64)
+			image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			var path := "res://assets/sprites/creatures/%s/battle_idle.png" % creature.species.species_id
+			if ResourceLoader.exists(path):
+				image.texture = load(path)
+			else:
+				path = path.trim_suffix(".png") + ".svg"
+				if ResourceLoader.exists(path): image.texture = load(path)
+			row.add_child(image)
+			var status := "Fainted" if not creature.is_conscious() else ("Ready" if creature.status_id == &"none" else str(creature.status_id).capitalize())
+			var summary := _label("%s · Lv.%d\nHP %d/%d · %s\n%s%s" % [creature.display_name(), creature.level, creature.current_vitality, creature.max_vitality(), status, "LEAD" if i == 0 else "Companion", " · Favorite" if creature.is_favorite else ""], 18)
+			summary.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			summary.add_theme_color_override("font_color", ACCENT_GOLD if i == selected_party_index else TEXT_IVORY)
+			row.add_child(summary)
 		party_list_vbox.add_child(btn)
 
 	# Update Details
@@ -726,7 +829,15 @@ func _refresh_party_tab() -> void:
 	portrait_visual.setup(sel.species, false)
 
 	species_quote_label.text = "“%s”" % sel.species.short_description
-	set_lead_btn.disabled = (selected_party_index == 0)
+	set_lead_btn.disabled = (selected_party_index == 0) or not sel.is_conscious()
+	_party_favorite.text = "REMOVE FAVORITE" if sel.is_favorite else "MARK FAVORITE"
+	_party_store.disabled = not PartyManager.can_swap_in_current_location() or party.size() <= 1 or (sel.is_conscious() and not PartyManager.has_other_conscious_creature(sel))
+	_party_store.text = "MOVE TO RESERVE" if PartyManager.can_swap_in_current_location() else "RESERVE AT OUTPOST"
+	var moves: PackedStringArray = []
+	for move in sel.learned_moves:
+		moves.append("%s · %s" % [move.display_name, move.description])
+	_party_extra.text = "BONDED: %s\n%s\n\nMOVES\n%s" % [sel.bond_location, "Wildbond companion" if sel.was_wildbonded else "Starter companion", "\n".join(moves)]
+	_update_party_visibility()
 
 	var lead_marker: String = " ★ [LEAD]" if selected_party_index == 0 else ""
 	detail_header_label.text = "%s Lv.%d%s" % [sel.display_name(), sel.level, lead_marker]
@@ -755,6 +866,13 @@ func _refresh_party_tab() -> void:
 		]
 	else:
 		instinct_desc_label.text = "No Instinct registered."
+
+func _update_party_visibility() -> void:
+	var details_only := MobileControls.enabled and _party_details_open
+	party_list_vbox.visible = not details_only
+	_party_heading.visible = not details_only
+	_party_back.visible = details_only
+	_party_details.visible = not MobileControls.enabled or details_only
 
 func _add_stat_bar(stat_name: String, val: int, max_val: int, color_hex: String = "#d9ad62") -> void:
 	var hbox = HBoxContainer.new()
@@ -866,7 +984,11 @@ func _layout_party_details() -> void:
 	species_quote_label.size.y = maxf(98, species_quote_label.get_minimum_size().y)
 	set_lead_btn.position.y = species_quote_label.position.y + species_quote_label.size.y + 12
 	set_lead_btn.size = Vector2(maxf(1, width - 32), 64)
-	_party_card.custom_minimum_size.y = maxf(394, set_lead_btn.position.y + 80)
+	_party_favorite.position = Vector2(16, set_lead_btn.position.y + 76)
+	_party_favorite.size = set_lead_btn.size
+	_party_store.position = Vector2(16, _party_favorite.position.y + 76)
+	_party_store.size = set_lead_btn.size
+	_party_card.custom_minimum_size.y = maxf(394, _party_store.position.y + 80)
 	var stat_width := maxf(1, _stats_card.size.x - 32)
 	detail_header_label.size.x = stat_width
 	detail_header_label.size.y = maxf(36, detail_header_label.get_minimum_size().y)
@@ -878,7 +1000,10 @@ func _layout_party_details() -> void:
 	instinct_desc_label.size.x = stat_width
 	instinct_desc_label.position.y = stats_vbox.position.y + stats_vbox.get_combined_minimum_size().y + 12
 	instinct_desc_label.size.y = maxf(90, instinct_desc_label.get_minimum_size().y)
-	_stats_card.custom_minimum_size.y = maxf(394, instinct_desc_label.position.y + instinct_desc_label.size.y + 16)
+	_party_extra.size.x = stat_width
+	_party_extra.position = Vector2(16, instinct_desc_label.position.y + instinct_desc_label.size.y + 12)
+	_party_extra.size.y = _party_extra.get_minimum_size().y
+	_stats_card.custom_minimum_size.y = maxf(394, _party_extra.position.y + _party_extra.size.y + 16)
 
 func _layout_reserve_preview() -> void:
 	var width := maxf(1, _reserve_preview.size.x - 32)
@@ -922,6 +1047,7 @@ func _apply_layout() -> void:
 	reserve_grid.columns = maxi(1, mini(5, int(_layout_width / 260)))
 	key_gear_container.columns = 1 if _layout_portrait else maxi(1, mini(3, int(_layout_width / 300)))
 	inventory_grid.columns = 1 if _layout_portrait or _layout_width < 700 else 2
+	_update_party_visibility()
 	_layout_party_details()
 	_layout_reserve_preview()
 	_layout_modals()

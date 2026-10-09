@@ -8,6 +8,8 @@ var close_time: int = 0
 var run_started: int = 0
 
 func _ready() -> void:
+	MobileControls.set_mode("desktop")
+	get_tree().create_timer(40.0).timeout.connect(func(): get_tree().quit(2))
 	SaveManager.save_path = "res://.qa/battle_exit_%d.json" % OS.get_process_id()
 	bootstrap = preload("res://scenes/bootstrap.tscn").instantiate()
 	add_child(bootstrap)
@@ -15,6 +17,13 @@ func _ready() -> void:
 
 func _run() -> void:
 	await get_tree().create_timer(0.9).timeout
+	var entry_deadline := Time.get_ticks_msec() + 5000
+	while bootstrap.is_transitioning and Time.get_ticks_msec() < entry_deadline:
+		await get_tree().process_frame
+	if bootstrap.is_transitioning:
+		push_error("Initial world transition did not complete")
+		get_tree().quit(1)
+		return
 	_pause_world()
 	await _flee_case(true)
 	_pause_world()
@@ -36,7 +45,7 @@ func _flee_case(immediate: bool) -> void:
 	var entered: int = Time.get_ticks_msec()
 	while Time.get_ticks_msec() - entered < 4000 and not bootstrap.active_scene.has_method("setup"):
 		await get_tree().process_frame
-	var arena: Control = bootstrap.active_scene
+	var arena: Node = bootstrap.active_scene
 	if not arena.has_method("setup") or arena.manager == null:
 		check(false, "real bootstrap opens the battle arena")
 		return

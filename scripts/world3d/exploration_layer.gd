@@ -21,6 +21,12 @@ var _nearest_resource: Dictionary = {}
 var _nearest_structure: Dictionary = {}
 var _rest_cooldown: float = 0.0
 var _encounter_grace_remaining: float = 8.0
+var _mobile_build: bool = false
+var _build_direction := Vector2.ZERO
+var _build_cursor := Vector3.ZERO
+var _build_previous_movement: bool = true
+var _placement_cooldown: float = 0.0
+var _undo_remaining: float = 0.0
 
 func _ready() -> void:
 	name = "Exploration"
@@ -32,6 +38,7 @@ func _ready() -> void:
 	for structure: Dictionary in homestead.get_structures_for_zone(zone_id):
 		_spawn_structure(structure)
 	homestead.structure_placed.connect(_on_structure_placed)
+	homestead.structure_removed.connect(_on_structure_removed)
 	hud = preload("res://scripts/ui/frontier_hud.gd").new()
 	hud.exploration = self
 	add_child(hud)
@@ -49,11 +56,20 @@ func _process(delta: float) -> void:
 	_save_time += delta
 	_presence_time += delta
 	_rest_cooldown = maxf(0,_rest_cooldown-delta)
+	_placement_cooldown = maxf(0.0, _placement_cooldown - delta)
+	_undo_remaining = maxf(0.0, _undo_remaining - delta)
 	# Region entry and battle return recreate this layer. Count only playable
 	# time so a menu cannot consume the keeper's chance to move away safely.
 	if player.movement_enabled and not blocks_legacy_input() and not is_legacy_overlay_open():
 		_encounter_grace_remaining = maxf(0.0, _encounter_grace_remaining - delta)
 	if not build_recipe.is_empty():
+		if _mobile_build:
+			_build_cursor += Vector3(_build_direction.x, 0, _build_direction.y) * 6.0 * delta
+			# Keep the ghost visible and within comfortable placement reach.
+			var offset := _build_cursor - player.global_position
+			offset.y = 0.0
+			if offset.length() > 11.0:
+				_build_cursor = player.global_position + offset.normalized() * 11.0
 		_update_preview()
 	if _tick_time >= 0.15:
 		_tick_time = 0
@@ -238,16 +254,48 @@ func start_build(recipe_id: String) -> void:
 	build_recipe = recipe_id
 	# Put the door toward the keeper by default, then allow quarter-turns.
 	build_rotation = (player.get_visual_heading() if player.has_method("get_visual_heading") else player.rotation.y) + PI
+	var controls := get_node_or_null("/root/MobileControls")
+	_mobile_build = controls != null and bool(controls.get("enabled"))
+	_build_previous_movement = player.movement_enabled
+	var heading: float = player.get_visual_heading() if player.has_method("get_visual_heading") else player.rotation.y
+	_build_cursor = player.global_position + Vector3(-sin(heading), 0, -cos(heading)) * (float(homestead.get_recipe(recipe_id)["radius"]) + 2.0)
+	if _mobile_build:
+		player.movement_enabled = false
+		player.velocity = Vector3.ZERO
 	ghost = load("res://scripts/world3d/build_visual.gd").create(recipe_id,true)
 	add_child(ghost)
-	hud.toast("Move to position your %s. T rotates. ENTER places it. ESC cancels." % homestead.get_recipe(recipe_id)["label"],6)
+	hud.toast("Move the placement pad to position your %s. Rotate, then Place." % homestead.get_recipe(recipe_id)["label"] if _mobile_build else "Move to position your %s. T rotates. ENTER places it. ESC cancels." % homestead.get_recipe(recipe_id)["label"],6)
 	_update_preview()
 
 func cancel_build() -> void:
+	if _mobile_build and is_instance_valid(player):
+		player.movement_enabled = _build_previous_movement
+	_mobile_build = false
+	_build_direction = Vector2.ZERO
 	build_recipe = ""
+	build_valid = false
 	if is_instance_valid(ghost):
 		ghost.queue_free()
 	ghost = null
+
+func is_mobile_build_active() -> bool:
+	return _mobile_build and not build_recipe.is_empty()
+
+func set_mobile_build_direction(direction: Vector2) -> void:
+	_build_direction = direction.limit_length(1.0) if is_mobile_build_active() and direction.is_finite() else Vector2.ZERO
+
+func can_undo_build() -> bool:
+	return _undo_remaining > 0.0 and build_recipe.is_empty() and homestead.can_undo_last_structure()
+
+func undo_last_build() -> Dictionary:
+	if not can_undo_build():
+		return {"success": false, "message": "The placement can no longer be undone."}
+	var result: Dictionary = homestead.undo_last_structure()
+	if result["success"]:
+		_undo_remaining = 0.0
+		save_progress()
+	hud.toast(result["message"])
+	return result
 
 func _update_preview() -> void:
 	if ghost == null:
@@ -255,7 +303,7 @@ func _update_preview() -> void:
 	var heading: float = player.get_visual_heading() if player.has_method("get_visual_heading") else player.rotation.y
 	var radius: float = homestead.get_recipe(build_recipe)["radius"]
 	var front := Vector3(-sin(heading),0,-cos(heading))
-	build_target = player.global_position + front * (radius + 2.0)
+	build_target = _build_cursor if _mobile_build else player.global_position + front * (radius + 2.0)
 	build_target.x = snappedf(build_target.x,0.5)
 	build_target.z = snappedf(build_target.z,0.5)
 	build_target.y = 0.02
@@ -264,15 +312,28 @@ func _update_preview() -> void:
 	var hit: Dictionary = get_world_3d().direct_space_state.intersect_ray(query)
 	if not hit.is_empty():
 		build_target.y = hit["position"].y + 0.02
-	var blocked: bool = hit.is_empty() or placement_blocked(build_target,radius)
+	var blocked: bool = hit.is_empty() or (not hit.is_empty() and hit["normal"].y < 0.95) or placement_blocked(build_target,radius)
 	var status: Dictionary = homestead.validate_placement(build_recipe,zone_id,build_target,build_rotation,blocked)
-	build_valid = status["success"] and homestead.get_craft_status(build_recipe)["success"]
+	var craft_status: Dictionary = homestead.get_craft_status(build_recipe)
+	if status["success"] and not craft_status["success"]:
+		status = craft_status
+	build_valid = status["success"]
 	build_message = status["message"]
 	ghost.global_position = build_target
 	ghost.rotation.y = build_rotation
 	load("res://scripts/world3d/build_visual.gd").set_preview_color(ghost,build_valid)
 
 func placement_blocked(position: Vector3, radius: float) -> bool:
+	if Vector2(position.x - player.global_position.x, position.z - player.global_position.z).length() < radius + 0.5:
+		return true
+	# Validate support across the footprint, not just under its centre.
+	for corner: Vector2 in [Vector2(-1, -1), Vector2(-1, 1), Vector2(1, -1), Vector2(1, 1)]:
+		var at := position + Vector3(corner.x, 0, corner.y) * radius * 0.65
+		var ground_query := PhysicsRayQueryParameters3D.create(at + Vector3.UP * 2.0, at - Vector3.UP * 1.0)
+		ground_query.exclude = [player.get_rid()]
+		var support: Dictionary = get_world_3d().direct_space_state.intersect_ray(ground_query)
+		if support.is_empty() or support["normal"].y < 0.95 or absf(support["position"].y - (position.y - 0.02)) > 0.2:
+			return true
 	var box := BoxShape3D.new()
 	box.size = Vector3(radius*1.5,2.3,radius*1.5)
 	var query := PhysicsShapeQueryParameters3D.new()
@@ -297,6 +358,8 @@ func placement_blocked(position: Vector3, radius: float) -> bool:
 	return false
 
 func place_build() -> Dictionary:
+	if build_recipe.is_empty() or _placement_cooldown > 0.0:
+		return {"success": false, "message": "Choose a building before placing it."}
 	_update_preview()
 	if not build_valid:
 		hud.toast(build_message)
@@ -305,9 +368,18 @@ func place_build() -> Dictionary:
 	var result: Dictionary = homestead.place_structure(build_recipe,zone_id,build_target,build_rotation,placement_blocked(build_target,radius))
 	hud.toast(result["message"])
 	if result["success"]:
+		_placement_cooldown = 0.45
+		_undo_remaining = 12.0
 		cancel_build()
 		save_progress()
 	return result
+
+func _on_structure_removed(structure_id: String) -> void:
+	if structure_nodes.has(structure_id):
+		var visual: Node = structure_nodes[structure_id]
+		if is_instance_valid(visual):
+			visual.queue_free()
+		structure_nodes.erase(structure_id)
 
 func _on_structure_placed(structure: Dictionary) -> void:
 	if structure["zone_id"] == zone_id:

@@ -52,6 +52,10 @@ var _trade_grid: GridContainer
 var _mobile: bool = false
 var _raw_prompt: String = ""
 var _raw_toast: String = ""
+var _mobile_menu: Button
+var _mission_toggle: Button
+var _mission_expanded: bool = false
+var _saved_time: float = 0.0
 
 func _on_homestead_changed() -> void:
 	_resources_time = 5.0
@@ -108,6 +112,14 @@ func _ready() -> void:
 	objective_panel.add_child(objective)
 	_objective_title = UI.label("YOUR HOMESTEAD", 15, UI.GOLD)
 	objective.add_child(_objective_title)
+	_mission_toggle = UI.button("Mission", func():
+		_mission_expanded = not _mission_expanded
+		_update_mission())
+	_mission_toggle.name = "MissionSummary"
+	_mission_toggle.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_mission_toggle.clip_text = true
+	_mission_toggle.focus_mode = Control.FOCUS_NONE
+	objective.add_child(_mission_toggle)
 	objective_label = UI.label("",22)
 	objective_label.custom_minimum_size.x = 520
 	objective_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -132,6 +144,10 @@ func _ready() -> void:
 	map.position = Vector2(1682, 142)
 	map.size = Vector2(210,165)
 	root.add_child(map)
+	_mobile_menu = UI.button("MENU", open_navigation)
+	_mobile_menu.name = "MobileMenu"
+	_mobile_menu.focus_mode = Control.FOCUS_NONE
+	root.add_child(_mobile_menu)
 	legend_panel = PanelContainer.new()
 	legend_panel.position = Vector2(1682,307)
 	legend_panel.size = Vector2(210,42)
@@ -296,6 +312,78 @@ func _reflow() -> void:
 	_modal_panel.size = Vector2(modal_width, modal_height)
 	_modal_panel.add_theme_stylebox_override("panel", _compact_panel() if _mobile else UI.panel(UI.PANEL, UI.GOLD))
 	_reflow_modal()
+	if _mobile:
+		# Mobile has a compact region/objective group and map/menu group.
+		# The desktop header and all its existing shortcuts remain intact.
+		_header.hide()
+		_mobile_menu.show()
+		_mobile_menu.custom_minimum_size = Vector2(128, 64)
+		_mobile_menu.position = Vector2(safe.end.x - 128, safe.position.y)
+		_mobile_menu.size = Vector2(128, 64)
+		map.custom_minimum_size = Vector2(128, 100)
+		map.size = Vector2(128, 100)
+		map.position = _mobile_menu.position + Vector2(0, 70)
+		map.show()
+		_objective_title.text = _brand_zone.text
+		_objective_title.show()
+		_objective_title.add_theme_font_size_override("font_size", 16)
+		_objective_panel.position = safe.position
+		_objective_panel.size = Vector2(minf(390, safe.size.x - 152), 0)
+		_mission_toggle.custom_minimum_size = Vector2(0, 60)
+		_mission_toggle.add_theme_font_size_override("font_size", 20)
+		_travel_row.vertical = true
+		travel_label.hide()
+		var feedback_width := minf(540, safe.size.x - 200)
+		toast_panel.size.x = feedback_width
+		toast_panel.position.x = safe.get_center().x - feedback_width / 2
+		toast_panel.position.y = safe.position.y + 178
+		prompt_panel.size.x = feedback_width
+		prompt_panel.position.x = safe.get_center().x - feedback_width / 2
+		prompt_panel.position.y = safe.end.y - 238
+	else:
+		_header.show()
+		_mobile_menu.hide()
+		map.custom_minimum_size = Vector2(210, 165)
+		map.size = Vector2(210, 165)
+		_objective_title.text = "YOUR HOMESTEAD"
+		travel_label.show()
+	_update_mission()
+
+func _update_mission() -> void:
+	if not is_instance_valid(_mission_toggle): return
+	_mission_toggle.visible = _mobile
+	objective_label.visible = not _mobile or _mission_expanded
+	var summary := objective_label.text.split("\n")[0]
+	if summary.length() > 34: summary = summary.left(32).strip_edges() + "…"
+	_mission_toggle.text = ("▾ " if _mission_expanded else "▸ ") + summary
+	_mission_toggle.tooltip_text = objective_label.text
+
+func open_navigation() -> void:
+	if current_modal == "navigation":
+		close_modal()
+	elif _open("navigation"):
+		_clear_content()
+		_heading("Your adventure", "Backpack, camp and settings")
+		var scroll := ScrollContainer.new()
+		scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		modal_content.add_child(scroll)
+		var links := GridContainer.new()
+		links.columns = 2
+		links.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		links.add_theme_constant_override("h_separation", 12)
+		links.add_theme_constant_override("v_separation", 12)
+		scroll.add_child(links)
+		for entry: Array in [["BACKPACK", func(): _open_legacy("backpack")], ["CAMP & BUILD", open_camp], ["FRIENDS · EXPERIMENTAL", open_friends], ["SAVE & SETTINGS", func(): _open_legacy("menu")]]:
+			var button := UI.button(entry[0], entry[1])
+			button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			links.add_child(button)
+		var camera_button := UI.button("CAMERA VIEW", func():
+			close_modal()
+			if "camera_rig" in exploration.zone:
+				exploration.zone.camera_rig._toggle_camera_mode())
+		links.add_child(camera_button)
+		_reflow_modal()
 
 func _reflow_modal() -> void:
 	if not is_instance_valid(modal_content):
@@ -346,6 +434,13 @@ func _process(delta: float) -> void:
 	
 	# Determine context
 	var building: bool = not exploration.build_recipe.is_empty()
+	if _mobile:
+		# Keep the placement ghost clear; one compact instruction strip sits
+		# above the thumb controls instead of stacking two central overlays.
+		prompt_panel.position.y = get_node("/root/MobileControls").safe_rect().end.y - (172 if building else 238)
+		if building:
+			prompt_panel.size.y = 80
+			prompt_label.text = "Drag pad to position · Rotate, then Place\n" + exploration.build_message
 	var in_menu: bool = not current_modal.is_empty()
 	var gathering: bool = _toast_time > 0 or _resources_time > 0
 	
@@ -354,7 +449,15 @@ func _process(delta: float) -> void:
 	# Update visibility smoothly or directly
 	header_details.modulate.a = move_toward(header_details.modulate.a, 1.0 if _mobile or context_active else 0.0, delta * 3.0)
 	legend_panel.modulate.a = move_toward(legend_panel.modulate.a, 1.0 if map.visible and context_active else 0.0, delta * 3.0)
-	_objective_panel.visible = not _mobile or (_toast_time <= 0 and not in_menu and not dialogue_open)
+	_objective_panel.visible = not _mobile or (not in_menu and not dialogue_open and not exploration.is_legacy_overlay_open())
+	if _mobile:
+		map.visible = not in_menu and not dialogue_open and not exploration.is_legacy_overlay_open()
+		_mobile_menu.visible = map.visible
+		var show_resources: bool = building or _resources_time > 0
+		_mobile_resources.visible = show_resources
+		_mobile_resources.modulate.a = clampf(_resources_time * 3.0, 0.0, 1.0) if not building else 1.0
+		_saved_time = maxf(0, _saved_time - delta)
+		_mobile_saved.visible = _saved_time > 0 or _mobile_saved.text.begins_with("Save failed")
 	
 	# Controls should fade out after a long time (e.g., 30s) or stay hidden during normal play, showing as hints when context changes
 	if _controls_time > 0:
@@ -369,6 +472,7 @@ func _process(delta: float) -> void:
 		_toast_time -= delta
 		toast_panel.modulate.a = clampf(_toast_time * 2,0,1)
 		toast_panel.visible = _toast_time > 0 and not dialogue_open
+	if _mobile and building: toast_panel.hide()
 	if _resources_time > 0:
 		_resources_time -= delta
 
@@ -378,6 +482,7 @@ func refresh() -> void:
 	resources_label.text = "WOOD %d     STONE %d     FIBER %d     CRYSTALS %d" % [exploration.homestead.get_resource_count("wood"),exploration.homestead.get_resource_count("stone"),exploration.homestead.get_resource_count("fiber"),exploration.homestead.get_resource_count("crystals")]
 	_mobile_resources.text = "Wood %d  ·  Stone %d  ·  Fiber %d  ·  Crystals %d" % [exploration.homestead.get_resource_count("wood"),exploration.homestead.get_resource_count("stone"),exploration.homestead.get_resource_count("fiber"),exploration.homestead.get_resource_count("crystals")]
 	objective_label.text = exploration.homestead.get_active_objective()
+	_update_mission()
 	travel_label.text = exploration.player.get_travel_label() if exploration.player.has_method("get_travel_label") else "ON FOOT"
 	if current_modal == "camp":
 		_render_camp()
@@ -395,6 +500,11 @@ func tick(prompt: String) -> void:
 		flight_label.visible = true
 		var altitude = maxf(0.0, exploration.player.global_position.y - exploration.player.call("_get_ground_y_below"))
 		flight_label.text = "ALT %.1fm" % altitude
+		if exploration.player.has_method("get_landing_status"):
+			var landing: Dictionary = exploration.player.get_landing_status()
+			flight_label.text = "ALT %.1fm · %s" % [landing.get("altitude", altitude), landing.get("message", "Landing unavailable")]
+			flight_label.add_theme_color_override("font_color", UI.GREEN if landing.get("safe", false) else UI.GOLD)
+			flight_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	else:
 		flight_label.visible = false
 
@@ -425,6 +535,7 @@ func _on_saved(success: bool) -> void:
 	_mobile_saved.text = "Saved" if success else "Save failed — use Menu"
 	_mobile_saved.add_theme_color_override("font_color",UI.MUTED if success else Color("f18e7b"))
 	_mobile_saved.visible = _mobile
+	_saved_time = 3.0
 
 func _clear_content() -> void:
 	_camp_grid = null
@@ -479,7 +590,7 @@ func _render_camp() -> void:
 	if is_instance_valid(_camp_grid) and _camp_grid.get_parent() is ScrollContainer:
 		previous_scroll = _camp_grid.get_parent().scroll_vertical
 	_clear_content()
-	_heading("Make a place in the wild.","Gather → build your hut → house your companions → craft riding and flight gear.")
+	_heading("Make a place in the wild.",_mobile_resources.text + "\nGather → build your hut → house your companions → craft riding and flight gear.")
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -578,7 +689,7 @@ func _render_friends() -> void:
 		modal_content.add_child(message)
 		_reflow_modal()
 		return
-	_heading("The ranger network", "Private friend sessions  ·  Direct connection  ·  Up to four rangers")
+	_heading("Ranger network · experimental", "Private direct connections · separate-device play remains unverified")
 	# One scrolling body keeps connection fields and session actions reachable
 	# in portrait and when the phone keyboard reduces the visible area.
 	var scroll := ScrollContainer.new()
@@ -602,7 +713,7 @@ func _render_friends() -> void:
 	setup.add_child(name_field)
 	address_field = LineEdit.new()
 	address_field.placeholder_text = "Friend's IP address"
-	address_field.text = "127.0.0.1"
+	address_field.text = ""
 	address_field.custom_minimum_size.x = 270
 	setup.add_child(address_field)
 	port_field = SpinBox.new()
@@ -615,7 +726,7 @@ func _render_friends() -> void:
 	setup.add_child(UI.button("HOST",func(): _connect_session(true)))
 	setup.add_child(UI.button("JOIN",func(): _connect_session(false)))
 	setup.add_child(UI.button("LEAVE",func(): exploration.network.leave_session()))
-	var scope := UI.label("Session supplies and animals are separate from your saved adventure. Public matchmaking is not available.\nFor friends on another network, the host needs a reachable address and UDP port. No account or paid service is used.",17,UI.MUTED)
+	var scope := UI.label("Session supplies and animals are separate from your saved adventure. Public matchmaking is not available.\nFor a private same-Wi-Fi test, enter the host device's local network address. 127.0.0.1 and localhost refer only to this device. No account or paid service is used.",17,UI.MUTED)
 	scope.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.add_child(scope)
 	lobby_content = VBoxContainer.new()

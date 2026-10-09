@@ -17,6 +17,10 @@ var notification_timer: Timer
 var _actions: GridContainer
 var _touch_buttons: Array[Button] = []
 var _quit_button: Button
+var _settings_scroll: ScrollContainer
+var _deadzone_slider: HSlider
+var _smoothing_slider: HSlider
+var _quality_picker: OptionButton
 
 func _ready() -> void:
 	scale = Vector2.ONE
@@ -49,15 +53,21 @@ func show_notification(text: String, is_success: bool = true) -> void:
 	if notification_timer != null:
 		notification_timer.start(2.2)
 
+func handle_back() -> bool:
+	if not visible:
+		return false
+	if confirmation_panel.visible:
+		_cancel_new_game()
+	else:
+		close()
+	return true
+
 func _unhandled_input(event: InputEvent) -> void:
 	if not visible:
 		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_ESCAPE:
-			if confirmation_panel.visible:
-				_cancel_new_game()
-			else:
-				close()
+			handle_back()
 			get_viewport().set_input_as_handled()
 
 func _panel(color: Color, border: Color) -> Panel:
@@ -123,6 +133,7 @@ func _build_ui() -> void:
 	notification_timer.timeout.connect(func() -> void: notification_label.visible = false)
 
 	var scroll := ScrollContainer.new()
+	_settings_scroll = scroll
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	contents.add_child(scroll)
@@ -163,6 +174,27 @@ func _build_ui() -> void:
 		touch_row.add_child(button)
 		_touch_buttons.append(button)
 
+	_deadzone_slider = _setting_slider(body, "JOYSTICK DEAD ZONE", 0.05, 0.30, 0.01, func(value: float) -> void:
+		MobileControls.set_joystick_deadzone(value)
+	)
+	var settings := get_node_or_null("/root/MobileSettings")
+	if settings != null:
+		_smoothing_slider = _setting_slider(body, "CAMERA FOLLOW SPEED", 3.0, 12.0, 0.5, func(value: float) -> void:
+			settings.set_follow_smoothing(value)
+		)
+		_smoothing_slider.tooltip_text = "Lower follows gently; higher responds faster."
+		var quality_label := Label.new()
+		quality_label.text = "GRAPHICS QUALITY"
+		body.add_child(quality_label)
+		_quality_picker = OptionButton.new()
+		_quality_picker.custom_minimum_size.y = 64
+		for option in ["AUTO", "LOW", "MEDIUM", "HIGH"]:
+			_quality_picker.add_item(option)
+		_quality_picker.item_selected.connect(func(index: int) -> void:
+			settings.set_quality(["auto", "low", "medium", "high"][index])
+		)
+		body.add_child(_quality_picker)
+
 	# Resume remains reachable while the body scrolls on small screens.
 	var footer := HBoxContainer.new()
 	footer.add_theme_constant_override("separation", 12)
@@ -192,6 +224,20 @@ func _build_ui() -> void:
 	confirmation.add_child(_button("YES, START NEW GAME", func() -> void: new_game_requested.emit()))
 	confirmation.add_child(_button("CANCEL / BACK", _cancel_new_game))
 
+func _setting_slider(parent: Control, title: String, low: float, high: float, increment: float, callback: Callable) -> HSlider:
+	var label := Label.new()
+	label.text = title
+	label.add_theme_font_size_override("font_size", 18)
+	parent.add_child(label)
+	var slider := HSlider.new()
+	slider.min_value = low
+	slider.max_value = high
+	slider.step = increment
+	slider.custom_minimum_size.y = 64
+	slider.value_changed.connect(callback)
+	parent.add_child(slider)
+	return slider
+
 func _cancel_new_game() -> void:
 	confirmation_panel.visible = false
 	main_panel.visible = true
@@ -214,3 +260,10 @@ func _apply_layout() -> void:
 	var modes := ["auto", "touch", "desktop"]
 	for i in range(_touch_buttons.size()):
 		_touch_buttons[i].set_pressed_no_signal(MobileControls.mode == modes[i])
+
+	if _deadzone_slider != null:
+		_deadzone_slider.set_value_no_signal(MobileControls.joystick_deadzone)
+	var settings := get_node_or_null("/root/MobileSettings")
+	if settings != null and _smoothing_slider != null:
+		_smoothing_slider.set_value_no_signal(settings.follow_smoothing)
+		_quality_picker.select(["auto", "low", "medium", "high"].find(settings.quality))

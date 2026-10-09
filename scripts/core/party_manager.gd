@@ -198,6 +198,8 @@ func swap_party_and_reserve(party_idx: int, reserve_idx: int) -> bool:
 		return false
 	var p_creature = party[party_idx]
 	var r_creature = reserve_storage[reserve_idx]
+	if not r_creature.is_conscious() and not has_other_conscious_creature(p_creature):
+		return false
 	party[party_idx] = r_creature
 	reserve_storage[reserve_idx] = p_creature
 	return true
@@ -214,6 +216,8 @@ func move_to_party(reserve_idx: int) -> bool:
 func move_to_reserve(party_idx: int) -> bool:
 	if not can_swap_in_current_location(): return false
 	if party_idx < 0 or party_idx >= party.size():
+		return false
+	if party.size() <= 1 or not has_other_conscious_creature(party[party_idx]):
 		return false
 	# Require extra confirmation for favorite? UI handles the prompt, we just enforce logic if needed.
 	# But no destructive operation here, just moving.

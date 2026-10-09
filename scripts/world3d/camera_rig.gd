@@ -42,6 +42,8 @@ func _process(delta: float) -> void:
 		_toggle_camera_mode()
 		
 	if is_instance_valid(target):
+		var settings := get_node_or_null("/root/MobileSettings")
+		var response := clampf(float(settings.get("follow_smoothing")), 3.0, 12.0) if settings != null else follow_speed
 		var target_pos := target.global_position
 		target_pos.y += (camera_height * 0.1) 
 		
@@ -50,17 +52,23 @@ func _process(delta: float) -> void:
 			target_pos.x = clampf(target_pos.x, camera_bounds.position.x, camera_bounds.position.x + camera_bounds.size.x)
 			target_pos.z = clampf(target_pos.z, camera_bounds.position.y, camera_bounds.position.y + camera_bounds.size.y)
 		
-		global_position = global_position.lerp(target_pos, 1.0 - exp(-follow_speed * delta))
+		global_position = global_position.lerp(target_pos, 1.0 - exp(-response * delta))
 		var speed_feedback := 0.0
+		if target.has_method("is_mounted") and target.call("is_mounted"):
+			speed_feedback = 1.0
 		if target.has_method("is_sprinting") and target.call("is_sprinting"):
 			speed_feedback = 2.5
 		if target.has_method("is_flying") and target.call("is_flying"):
 			speed_feedback += 3.0
-			if "velocity" in target:
-				var ascent_rate = clampf(target.velocity.y, 0.0, 5.0)
-				speed_feedback += ascent_rate * 1.2
+			if target.has_method("get_landing_status"):
+				var landing: Dictionary = target.call("get_landing_status")
+				# Hovering high should retain its framing, not zoom back in when
+				# the rise button is released. Pullback stays deliberately modest.
+				speed_feedback += clampf(float(landing["altitude"]), 0.0, 4.5) * 0.65
 		_camera.fov = lerpf(_camera.fov, fov + speed_feedback, 1.0 - exp(-3.0 * delta))
 		_spring_arm.spring_length = lerpf(_spring_arm.spring_length, camera_distance + speed_feedback * 0.45, 1.0 - exp(-3.0 * delta))
+		if _current_mode == CameraMode.ORTHOGRAPHIC:
+			_camera.size = lerpf(_camera.size, 23.0 + speed_feedback * 0.55, 1.0 - exp(-3.0 * delta))
 		
 		# Orient spring arm to look down at correct angle
 		_spring_arm.rotation_degrees.x = camera_angle

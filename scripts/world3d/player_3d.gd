@@ -134,6 +134,8 @@ func _physics_process(delta: float) -> void:
 			current_turn = 4.0 if running else 10.0
 		else:
 			current_speed = 13.5 if running else 9.0
+			current_accel = 16.0
+			current_decel = 20.0
 
 	var rate := current_accel if not direction.is_zero_approx() else current_decel
 	# Acceleration is in metres per second squared, stable at any frame rate.
@@ -211,7 +213,13 @@ func _process_flight(delta: float) -> void:
 		return
 	var vertical_speed := 0.0
 	if _landing_requested:
-		vertical_speed = -3.4
+		if get_landing_status()["safe"]:
+			vertical_speed = -3.4
+		else:
+			_landing_requested = false
+			velocity.y = maxf(0.0, velocity.y)
+			travel_changed.emit()
+			_feedback(false, "Landing cancelled: move above clear, safe ground.")
 	elif _action_pressed(&"descend"):
 		vertical_speed = -4.5
 	elif not _ignore_jump_until_release and _action_pressed(&"jump") and global_position.y < _flight_max_height() - 0.03:
@@ -275,8 +283,9 @@ func _request_dismount() -> Dictionary:
 			_landing_requested = false
 			travel_changed.emit()
 			return _feedback(true, "Landing cancelled. Continue flying.")
-		if not _has_ground_below():
-			return _feedback(false, "Fly above solid ground before landing.")
+		var landing: Dictionary = get_landing_status()
+		if not landing["safe"]:
+			return _feedback(false, landing["message"])
 		_landing_requested = true
 		travel_changed.emit()
 		return _feedback(true, "Landing… steer toward a clear patch of solid ground.")
@@ -316,10 +325,40 @@ func _validate_mount() -> void:
 	_feedback(false, "Your travel companion is unavailable. Returned safely to foot travel.")
 
 func _has_ground_below() -> bool:
+	return bool(get_landing_status()["safe"])
+
+## Shared by the flight controller and touch HUD; a downward hit alone is not
+## enough because the player capsule may overlap a wall, roof or water hazard.
+func get_landing_status() -> Dictionary:
 	var query := PhysicsRayQueryParameters3D.create(global_position + Vector3.UP * 0.2, global_position + Vector3.DOWN * 20.0)
 	query.exclude = [get_rid()]
 	query.collide_with_areas = false
-	return not get_world_3d().direct_space_state.intersect_ray(query).is_empty()
+	var hit: Dictionary = get_world_3d().direct_space_state.intersect_ray(query)
+	var result := {"safe": false, "available": not hit.is_empty(), "message": "Landing unavailable: no ground below.", "altitude": maxf(0.0, global_position.y - _takeoff_height), "position": global_position}
+	if hit.is_empty():
+		return result
+	var at: Vector3 = hit["position"]
+	result["position"] = at
+	result["altitude"] = maxf(0.0, global_position.y - at.y)
+	result["message"] = "Unsafe landing: find a clear, level patch."
+	if hit["normal"].y < cos(floor_max_angle):
+		return result
+	var capsule := CapsuleShape3D.new()
+	capsule.radius = 0.36
+	capsule.height = 1.5
+	var clearance := PhysicsShapeQueryParameters3D.new()
+	clearance.shape = capsule
+	clearance.transform = Transform3D(Basis.IDENTITY, at + Vector3.UP * 0.79)
+	clearance.exclude = [get_rid()]
+	clearance.collide_with_bodies = true
+	clearance.collide_with_areas = true
+	for obstruction: Dictionary in get_world_3d().direct_space_state.intersect_shape(clearance, 32):
+		var collider: Object = obstruction.get("collider")
+		if collider is PhysicsBody3D or collider is HazardVolume3D:
+			return result
+	result["safe"] = true
+	result["message"] = "Safe landing"
+	return result
 
 func _owned_companions() -> Array[CreatureInstance]:
 	var result: Array[CreatureInstance] = []
@@ -505,8 +544,9 @@ func _animate_travel(delta: float, running: bool) -> void:
 	_rider_root.rotation.z = sin(_gait * 0.5) * minf(speed / run_speed, 1.0) * 0.025
 	
 	if _flying:
-		var floor_y = _get_ground_y_below()
-		var altitude = global_position.y - floor_y
+		var landing: Dictionary = get_landing_status()
+		var floor_y: float = landing["position"].y
+		var altitude: float = landing["altitude"]
 		_shadow.visible = true
 		_shadow.global_position.y = floor_y + 0.05
 		var shadow_scale = clampf(1.0 - (altitude / 12.0), 0.3, 1.0) * 2.5
@@ -515,7 +555,7 @@ func _animate_travel(delta: float, running: bool) -> void:
 			var mat = _shadow.material_override as StandardMaterial3D
 			mat.albedo_color.a = clampf(0.35 - (altitude / 15.0), 0.0, 0.35)
 		
-		var landing_alpha = 0.0
+		var landing_alpha = 0.18 if landing["available"] else 0.0
 		if altitude < 2.5 and _landing_requested:
 			landing_alpha = clampf(1.0 - (altitude / 2.5), 0.0, 0.6)
 		elif altitude < 1.5:
@@ -524,7 +564,7 @@ func _animate_travel(delta: float, running: bool) -> void:
 		_landing_highlight.global_position.y = floor_y + 0.06
 		if _landing_highlight.material_override is StandardMaterial3D:
 			var mat = _landing_highlight.material_override as StandardMaterial3D
-			mat.albedo_color.a = landing_alpha
+			mat.albedo_color = Color(0.3, 0.8, 0.5, landing_alpha) if landing["safe"] else Color(1.0, 0.3, 0.2, landing_alpha)
 	else:
 		_shadow.visible = is_on_floor()
 		_shadow.position = Vector3(0, -0.39, 0)

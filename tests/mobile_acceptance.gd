@@ -64,9 +64,9 @@ func _run() -> void:
 	check(MobileControls.enabled and MobileControls.context == "explore", "Actual scene activates phone controls")
 	check(get_window().content_scale_size == Vector2i(960, 540), "Landscape uses readable phone canvas")
 	check(FileAccess.file_exists(qa_save), "Phone preview writes only its isolated fixture")
-	for button: Button in exploration.hud._navigation:
-		check(bounded(button), "Header " + button.text + " fits phone screen")
-	for id: String in ["interact", "jump", "sprint", "ride", "fly", "camera"]:
+	for control: Control in [exploration.hud._mobile_menu, exploration.hud.map]:
+		check(bounded(control), "Compact header fits phone screen")
+	for id: String in ["interact", "jump", "sprint"]:
 		check(bounded(MobileControls.buttons[id]), id + " touch target fits screen")
 	check(MobileControls.buttons.jump.size.y * get_viewport().get_final_transform().get_scale().y >= 44.0, "Landscape gameplay targets exceed 44 physical pixels")
 	# A second finger can jump while the first finger continues steering.
@@ -108,7 +108,7 @@ func _run() -> void:
 	# Touch the normal GUI navigation (touch-to-mouse emulation), not callbacks.
 	touch(0, MobileControls.joystick.get_global_rect().get_center() + Vector2(50, 0), true)
 	await frames(2)
-	await tap(exploration.hud._navigation[0])
+	await navigate("CAMP & BUILD")
 	check(exploration.hud.current_modal == "camp", "Actual header touch opens Camp")
 	check(Input.get_vector("move_left", "move_right", "move_forward", "move_back").is_zero_approx(), "A second finger can open Camp while steering; menu clears the held pad")
 	touch(0, pad + Vector2(50, 0), false)
@@ -139,7 +139,7 @@ func _run() -> void:
 	check(exploration.hud._objective_panel.visible and exploration.hud._objective_panel.size.y < 180.0, "Objective summary stays compact when the welcome toast expires")
 	await capture("landscape_objective")
 	# Pack and system use their ordinary controls without pressing a key.
-	await tap(exploration.hud._navigation[2])
+	await navigate("BACKPACK")
 	var pack: Control = bootstrap.active_scene.backpack_ui
 	check(pack.visible and bounded(pack.main_panel), "Header touch opens a bounded phone backpack")
 	pack.tab_gear_btn.pressed.emit()
@@ -148,7 +148,7 @@ func _run() -> void:
 	await capture("backpack_landscape")
 	pack.close()
 	await frames()
-	await tap(exploration.hud._navigation[3])
+	await navigate("SAVE & SETTINGS")
 	var menu: Control = bootstrap.active_scene.system_menu_ui
 	check(menu.visible and bounded(menu.main_panel), "Header touch opens a bounded phone system menu")
 	await capture("system_landscape")
@@ -232,7 +232,7 @@ func _run() -> void:
 	check(not exploration.player.is_mounted() and exploration.player.is_on_floor(), "Touch Land completes a safe ground landing")
 	var camera: Node = bootstrap.active_scene.camera_rig
 	var camera_mode: int = camera._current_mode
-	await tap(MobileControls.buttons.camera)
+	await navigate("CAMERA VIEW")
 	check(camera._current_mode != camera_mode, "Touch Camera reaches the existing view toggle")
 	# Held touches must never leak through focus changes or scene transitions.
 	touch(0, MobileControls.joystick.get_global_rect().get_center() + Vector2(50, 0), true)
@@ -261,3 +261,14 @@ func _run() -> void:
 	SaveManager.save_path = original_save
 	print("MOBILE ACCEPTANCE: %d passed, %d failed" % [passed, failed])
 	get_tree().quit(0 if failed == 0 else 1)
+
+func navigate(label: String) -> void:
+	await tap(exploration.hud._mobile_menu)
+	for node in exploration.hud.modal_content.find_children("*", "Button", true, false):
+		if node.text == label:
+			if node.get_parent().get_parent() is ScrollContainer:
+				node.get_parent().get_parent().ensure_control_visible(node)
+			await frames()
+			await tap(node)
+			return
+	check(false, "Navigation destination exists: " + label)
