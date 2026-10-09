@@ -1,5 +1,6 @@
 extends CanvasLayer
 const UI = preload("res://scripts/ui/frontier_theme.gd")
+const WildAtlasManager = preload("res://scripts/core/wild_atlas_manager.gd")
 var exploration: Node3D
 var root: Control
 var resources_label: Label
@@ -49,6 +50,14 @@ var _camp_descriptions: Array[Label] = []
 var _friends_setup: GridContainer
 var _modal_action_rows: Array[BoxContainer] = []
 var _trade_grid: GridContainer
+var _atlas_category: String = "ALL"
+var _atlas_selected_id: String = "AF-001"
+var _atlas_realm: String = "AFRICA"
+var _atlas_search_query: String = ""
+var _atlas_split: BoxContainer
+var _atlas_list_scroll: ScrollContainer
+var _atlas_detail_panel: PanelContainer
+var _atlas_detail_box: VBoxContainer
 var _mobile: bool = false
 var _raw_prompt: String = ""
 var _raw_toast: String = ""
@@ -95,7 +104,7 @@ func _ready() -> void:
 	resources_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	resources_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	header_details.add_child(resources_label)
-	for entry: Array in [["C  CAMP",func(): open_camp()], ["M  FRIENDS",func(): open_friends()], ["Q  PACK",func(): _open_legacy("backpack")], ["ESC  MENU",func(): _open_legacy("menu")]]:
+	for entry: Array in [["C  CAMP",func(): open_camp()], ["X  ATLAS",func(): open_atlas()], ["M  FRIENDS",func(): open_friends()], ["Q  PACK",func(): _open_legacy("backpack")], ["ESC  MENU",func(): _open_legacy("menu")]]:
 		var button := UI.button(entry[0], entry[1])
 		header_details.add_child(button)
 		_navigation.append(button)
@@ -374,7 +383,7 @@ func open_navigation() -> void:
 		links.add_theme_constant_override("h_separation", 12)
 		links.add_theme_constant_override("v_separation", 12)
 		scroll.add_child(links)
-		for entry: Array in [["BACKPACK", func(): _open_legacy("backpack")], ["CAMP & BUILD", open_camp], ["FRIENDS · EXPERIMENTAL", open_friends], ["SAVE & SETTINGS", func(): _open_legacy("menu")]]:
+		for entry: Array in [["BACKPACK", func(): _open_legacy("backpack")], ["WILD ATLAS · GUIDE", open_atlas], ["CAMP & BUILD", open_camp], ["FRIENDS · EXPERIMENTAL", open_friends], ["SAVE & SETTINGS", func(): _open_legacy("menu")]]:
 			var button := UI.button(entry[0], entry[1])
 			button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			links.add_child(button)
@@ -408,6 +417,11 @@ func _reflow_modal() -> void:
 			row.vertical = _mobile and _modal_panel.size.x < 820
 	if is_instance_valid(_trade_grid):
 		_trade_grid.columns = 2 if _mobile else 6
+	if is_instance_valid(_atlas_split):
+		_atlas_split.vertical = _mobile or _modal_panel.size.x < 920
+		if is_instance_valid(_atlas_list_scroll):
+			_atlas_list_scroll.custom_minimum_size.x = 0 if _atlas_split.vertical else 380
+			_atlas_list_scroll.custom_minimum_size.y = 200 if _atlas_split.vertical else 0
 	_size_modal_controls(modal_content)
 
 func _size_modal_controls(node: Node) -> void:
@@ -544,6 +558,10 @@ func _clear_content() -> void:
 	_friends_setup = null
 	_modal_action_rows.clear()
 	_trade_grid = null
+	_atlas_split = null
+	_atlas_list_scroll = null
+	_atlas_detail_panel = null
+	_atlas_detail_box = null
 	_modal_heading = null
 	_modal_subtitle = null
 	_modal_close = null
@@ -671,6 +689,317 @@ func _open_legacy(kind: String) -> void:
 			exploration.zone.toggle_system_menu()
 		else:
 			exploration.zone._on_menu_pressed()
+
+func open_atlas() -> void:
+	if current_modal == "atlas":
+		close_modal()
+	elif _open("atlas"):
+		_render_atlas()
+
+func _render_atlas() -> void:
+	_clear_content()
+	var realm_title := WildAtlasManager.get_realm_title(_atlas_realm)
+	var all_creatures := WildAtlasManager.get_creatures(_atlas_realm)
+	_heading("WILD ATLAS  /  FIELD GUIDE", "%s · %d Wildlife Species Cataloged" % [realm_title, all_creatures.size()])
+
+	var toolbar := VBoxContainer.new()
+	toolbar.add_theme_constant_override("separation", 8)
+	modal_content.add_child(toolbar)
+
+	var realm_row := HBoxContainer.new()
+	realm_row.add_theme_constant_override("separation", 6)
+	toolbar.add_child(realm_row)
+	for realm_key: String in WildAtlasManager.get_realms():
+		var short_name: String = realm_key.replace("_", " ").capitalize()
+		if realm_key == "SOUTH_AMERICA": short_name = "S. AMERICA"
+		elif realm_key == "NORTH_AMERICA": short_name = "N. AMERICA"
+		elif realm_key == "POLAR_OCEANS": short_name = "POLAR/OCEAN"
+		var is_active: bool = (_atlas_realm == realm_key)
+		var btn := UI.button(short_name, func():
+			_atlas_realm = realm_key
+			_atlas_category = "ALL"
+			_atlas_search_query = ""
+			var first_list := WildAtlasManager.get_creatures(realm_key)
+			if not first_list.is_empty():
+				_atlas_selected_id = first_list[0].get("id", "")
+			_render_atlas())
+		btn.custom_minimum_size = Vector2(0, 44 if not _mobile else 48)
+		if is_active:
+			btn.add_theme_color_override("font_color", UI.GOLD)
+		realm_row.add_child(btn)
+
+	var filter_row := HBoxContainer.new()
+	filter_row.add_theme_constant_override("separation", 6)
+	toolbar.add_child(filter_row)
+
+	var search_box := LineEdit.new()
+	search_box.placeholder_text = "Search name, species or trait…"
+	search_box.text = _atlas_search_query
+	search_box.custom_minimum_size = Vector2(240, 44 if not _mobile else 48)
+	search_box.text_changed.connect(func(new_text: String):
+		_atlas_search_query = new_text
+		_refresh_atlas_list())
+	filter_row.add_child(search_box)
+
+	var categories := WildAtlasManager.get_categories(_atlas_realm)
+	for cat: String in categories:
+		var display_cat := cat
+		if cat == "Megafauna & Giants": display_cat = "Megafauna"
+		elif cat == "Reptilian & Aquatic": display_cat = "Reptiles/River"
+		elif cat == "Small & Medium Mammals": display_cat = "Mammals"
+		elif cat == "Avian & Feathered": display_cat = "Birds"
+		var is_cat_active: bool = (_atlas_category == cat)
+		var cat_btn := UI.button(display_cat, func():
+			_atlas_category = cat
+			_refresh_atlas_list())
+		cat_btn.custom_minimum_size = Vector2(0, 44 if not _mobile else 48)
+		if is_cat_active:
+			cat_btn.add_theme_color_override("font_color", UI.GOLD)
+		filter_row.add_child(cat_btn)
+
+	var split := BoxContainer.new()
+	_atlas_split = split
+	split.vertical = _mobile or _modal_panel.size.x < 920
+	split.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	split.add_theme_constant_override("separation", 14)
+	modal_content.add_child(split)
+
+	var list_scroll := ScrollContainer.new()
+	_atlas_list_scroll = list_scroll
+	list_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	list_scroll.custom_minimum_size.x = 0 if split.vertical else 380
+	list_scroll.custom_minimum_size.y = 200 if split.vertical else 0
+	list_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	split.add_child(list_scroll)
+
+	var list_vbox := VBoxContainer.new()
+	list_vbox.name = "AtlasListVBox"
+	list_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list_vbox.add_theme_constant_override("separation", 6)
+	list_scroll.add_child(list_vbox)
+
+	var detail_panel := PanelContainer.new()
+	_atlas_detail_panel = detail_panel
+	detail_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	detail_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	detail_panel.add_theme_stylebox_override("panel", UI.panel(Color("162b26"), UI.GOLD if not _mobile else Color("324d44")))
+	split.add_child(detail_panel)
+
+	var detail_scroll := ScrollContainer.new()
+	detail_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	detail_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	detail_panel.add_child(detail_scroll)
+
+	var detail_vbox := VBoxContainer.new()
+	_atlas_detail_box = detail_vbox
+	detail_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	detail_vbox.add_theme_constant_override("separation", 12)
+	detail_scroll.add_child(detail_vbox)
+
+	_populate_atlas_list(list_vbox)
+	_update_atlas_selection()
+	_reflow_modal()
+
+func _populate_atlas_list(list_vbox: VBoxContainer) -> void:
+	for c in list_vbox.get_children():
+		list_vbox.remove_child(c)
+		c.queue_free()
+
+	var filtered := WildAtlasManager.filter_creatures(_atlas_realm, _atlas_category, _atlas_search_query)
+	if filtered.is_empty():
+		var empty_lbl := UI.label("No creatures match the filter.", 18, UI.MUTED)
+		list_vbox.add_child(empty_lbl)
+		return
+
+	var found_selected: bool = false
+	for item: Dictionary in filtered:
+		if item.get("id", "") == _atlas_selected_id:
+			found_selected = true
+			break
+	if not found_selected and not filtered.is_empty():
+		_atlas_selected_id = filtered[0].get("id", "")
+
+	for item: Dictionary in filtered:
+		var cid: String = item.get("id", "")
+		var cname: String = item.get("name", "")
+		var cspecies: String = item.get("species", "")
+		var is_bonded: bool = WildAtlasManager.is_bonded_starter(cname) or WildAtlasManager.is_bonded_starter(cspecies)
+		var is_active: bool = (cid == _atlas_selected_id)
+
+		var btn := Button.new()
+		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		btn.custom_minimum_size.y = 48 if not _mobile else 54
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var badge := " ★ BONDED" if is_bonded else " 📖"
+		btn.text = "%s %s (%s)%s" % [cid, cname, cspecies, badge]
+		if is_active:
+			btn.add_theme_color_override("font_color", UI.GOLD)
+			btn.add_theme_stylebox_override("normal", UI.panel(Color("2a4e43"), UI.GOLD))
+		elif is_bonded:
+			btn.add_theme_color_override("font_color", UI.GREEN)
+
+		btn.pressed.connect(func():
+			_atlas_selected_id = cid
+			_update_atlas_selection()
+			for other_btn in list_vbox.get_children():
+				if other_btn is Button:
+					var other_id: String = other_btn.text.split(" ")[0]
+					if other_id == _atlas_selected_id:
+						other_btn.add_theme_color_override("font_color", UI.GOLD)
+						other_btn.add_theme_stylebox_override("normal", UI.panel(Color("2a4e43"), UI.GOLD))
+					else:
+						var other_bonded: bool = "★" in other_btn.text
+						other_btn.add_theme_color_override("font_color", UI.GREEN if other_bonded else UI.TEXT)
+						other_btn.add_theme_stylebox_override("normal", UI.panel(Color("263d36")))
+		)
+		list_vbox.add_child(btn)
+
+func _refresh_atlas_list() -> void:
+	if not is_instance_valid(_atlas_list_scroll):
+		return
+	var list_vbox = _atlas_list_scroll.get_node_or_null("AtlasListVBox")
+	if is_instance_valid(list_vbox):
+		_populate_atlas_list(list_vbox)
+		_update_atlas_selection()
+
+func _update_atlas_selection() -> void:
+	if not is_instance_valid(_atlas_detail_box):
+		return
+	for c in _atlas_detail_box.get_children():
+		_atlas_detail_box.remove_child(c)
+		c.queue_free()
+
+	var item := WildAtlasManager.get_creature_by_id(_atlas_selected_id, _atlas_realm)
+	if item.is_empty():
+		_atlas_detail_box.add_child(UI.label("Select a creature from the list to view field guide entries.", 20, UI.MUTED))
+		return
+
+	var cname: String = item.get("name", "Unknown")
+	var cspecies: String = item.get("species", "")
+	var sci_name: String = item.get("scientific_name", "")
+	var category: String = item.get("category", "")
+	var aspect: String = item.get("aspect", "Wild")
+	var is_bonded: bool = WildAtlasManager.is_bonded_starter(cname) or WildAtlasManager.is_bonded_starter(cspecies)
+
+	var header_box := HBoxContainer.new()
+	header_box.add_theme_constant_override("separation", 16)
+	_atlas_detail_box.add_child(header_box)
+
+	var sprite_texture: Texture2D = _find_creature_sprite(cname, cspecies)
+	if sprite_texture != null:
+		var tex_rect := TextureRect.new()
+		tex_rect.texture = sprite_texture
+		tex_rect.custom_minimum_size = Vector2(140, 140)
+		tex_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		header_box.add_child(tex_rect)
+	else:
+		var emblem := PanelContainer.new()
+		emblem.custom_minimum_size = Vector2(100, 100)
+		emblem.add_theme_stylebox_override("panel", UI.panel(Color("223e37"), UI.GOLD if is_bonded else Color("40554b")))
+		var emblem_lbl := UI.label(aspect.left(1) + "\n" + cname.left(2).to_upper(), 24, UI.GOLD)
+		emblem_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		emblem_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		emblem.add_child(emblem_lbl)
+		header_box.add_child(emblem)
+
+	var name_box := VBoxContainer.new()
+	name_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_box.add_theme_constant_override("separation", 4)
+	header_box.add_child(name_box)
+
+	var title_lbl := UI.label("%s  [%s]" % [cname.to_upper(), item.get("id", "")], 28, UI.GOLD)
+	title_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	name_box.add_child(title_lbl)
+
+	var sub_lbl := UI.label("%s  ·  %s" % [cspecies, sci_name], 18, UI.MUTED)
+	sub_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	name_box.add_child(sub_lbl)
+
+	var tags_row := HBoxContainer.new()
+	tags_row.add_theme_constant_override("separation", 10)
+	name_box.add_child(tags_row)
+
+	var status_tag := UI.label("★ BONDED COMPANION" if is_bonded else "📖 FIELD GUIDE OBSERVATION", 16, UI.GREEN if is_bonded else UI.MUTED)
+	tags_row.add_child(status_tag)
+
+	var aspect_tag := UI.label("✦ %s  ·  %s" % [aspect, category], 16, UI.GOLD)
+	tags_row.add_child(aspect_tag)
+
+	var sep := HSeparator.new()
+	_atlas_detail_box.add_child(sep)
+
+	var env_grid := GridContainer.new()
+	env_grid.columns = 2
+	env_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	env_grid.add_theme_constant_override("h_separation", 16)
+	_atlas_detail_box.add_child(env_grid)
+
+	var hab_lbl := UI.label("HABITAT:  %s" % item.get("habitat", "Wilds"), 17, UI.TEXT)
+	hab_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	env_grid.add_child(hab_lbl)
+
+	var diet_lbl := UI.label("DIET:  %s" % item.get("diet", "Forager"), 17, UI.TEXT)
+	diet_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	env_grid.add_child(diet_lbl)
+
+	var edu_panel := PanelContainer.new()
+	edu_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	edu_panel.add_theme_stylebox_override("panel", UI.panel(Color("102420"), Color("507d6d")))
+	_atlas_detail_box.add_child(edu_panel)
+
+	var edu_vbox := VBoxContainer.new()
+	edu_vbox.add_theme_constant_override("separation", 6)
+	edu_panel.add_child(edu_vbox)
+
+	var edu_head := UI.label("★ REAL WILDLIFE FACTS & NATURE SECRETS", 18, UI.GOLD)
+	edu_vbox.add_child(edu_head)
+
+	var edu_text := UI.label(item.get("education", "No field notes recorded yet."), 18, UI.TEXT)
+	edu_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	edu_vbox.add_child(edu_text)
+
+	var trait_box := VBoxContainer.new()
+	trait_box.add_theme_constant_override("separation", 4)
+	_atlas_detail_box.add_child(trait_box)
+
+	var trait_head := UI.label("✦ EXPLORATION TRADE & FIELD TRAIT", 18, UI.GREEN)
+	trait_box.add_child(trait_head)
+
+	var trait_text := UI.label(item.get("exploration_trait", "None discovered."), 17, UI.TEXT)
+	trait_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	trait_box.add_child(trait_text)
+
+	var combat_box := VBoxContainer.new()
+	combat_box.add_theme_constant_override("separation", 4)
+	_atlas_detail_box.add_child(combat_box)
+
+	var move_text := UI.label("Signature Move: %s" % item.get("signature_move", "Strike"), 16, UI.GOLD)
+	combat_box.add_child(move_text)
+
+	var notes_text := UI.label("Field Observations: %s" % item.get("visual_notes", ""), 16, UI.MUTED)
+	notes_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	combat_box.add_child(notes_text)
+
+func _find_creature_sprite(cname: String, cspecies: String) -> Texture2D:
+	var keys := [
+		cname.to_lower(),
+		cspecies.to_lower().replace(" ", "_"),
+		cname.to_lower().replace(" ", "_")
+	]
+	if cname.to_lower() == "lionet": keys.append("lionet")
+	elif cname.to_lower() == "cheetan": keys.append("cheetan")
+	elif cname.to_lower() == "warthusk": keys.append("warthusk")
+	elif cname.to_lower() == "pangolet": keys.append("pangolet")
+	elif cname.to_lower() == "vulturon": keys.append("vulturon")
+	elif cname.to_lower() == "ratelit": keys.append("ratelit")
+	elif cname.to_lower() == "meerkit": keys.append("meerkit")
+
+	for k in keys:
+		var p := "res://assets/sprites/creatures/%s/battle_idle.png" % k
+		if ResourceLoader.exists(p):
+			return load(p) as Texture2D
+	return null
 
 func open_friends() -> void:
 	if current_modal == "friends":

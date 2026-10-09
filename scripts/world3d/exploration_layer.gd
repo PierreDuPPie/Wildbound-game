@@ -112,7 +112,9 @@ func _input(event: InputEvent) -> void:
 			hud.close_modal()
 		elif event.keycode == KEY_M and hud.current_modal == "friends":
 			hud.close_modal()
-		if event.keycode in [KEY_ESCAPE,KEY_C,KEY_M,KEY_Q,KEY_B]:
+		elif event.keycode == KEY_X and hud.current_modal == "atlas":
+			hud.close_modal()
+		if event.keycode in [KEY_ESCAPE,KEY_C,KEY_M,KEY_X,KEY_Q,KEY_B]:
 			get_viewport().set_input_as_handled()
 		return
 	if is_legacy_overlay_open() or not player.movement_enabled:
@@ -123,6 +125,9 @@ func _input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 		KEY_M:
 			hud.open_friends()
+			get_viewport().set_input_as_handled()
+		KEY_X:
+			hud.open_atlas()
 			get_viewport().set_input_as_handled()
 		KEY_E:
 			if not _nearest_resource.is_empty():
