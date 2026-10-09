@@ -30,6 +30,7 @@ const CARACLAW: CreatureSpecies = preload("res://data/creatures/caraclaw.tres")
 const GAZELLOR: CreatureSpecies = preload("res://data/creatures/gazellor.tres")
 const SPRINGER: CreatureSpecies = preload("res://data/creatures/springer.tres")
 const WILDEBOT: CreatureSpecies = preload("res://data/creatures/wildebot.tres")
+const ROLLBUG: CreatureSpecies = preload("res://data/creatures/rollbug.tres")
 
 const CARACLASH: CreatureSpecies = preload("res://data/creatures/caraclash.tres")
 const CHEETARON: CreatureSpecies = preload("res://data/creatures/cheetaron.tres")
@@ -76,6 +77,7 @@ func species_lookup() -> Dictionary:
 		&"gazellor": GAZELLOR,
 		&"springer": SPRINGER,
 		&"wildebot": WILDEBOT,
+		&"rollbug": ROLLBUG,
 		&"caraclash": CARACLASH,
 		&"cheetaron": CHEETARON,
 		&"hyenarch": HYENARCH,

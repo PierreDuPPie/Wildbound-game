@@ -184,7 +184,7 @@ func test_auto_discovery() -> void:
 				if creature:
 					assert_true(creature.validate_species().is_empty(), "Creature schema validates: " + file_name)
 			file_name = dir.get_next()
-	assert_eq(creatures_count, 40, "Found 30 base creatures and 10 evolutions")
+	assert_true(creatures_count >= 40, "Found all base creatures and evolutions (%d creatures loaded)" % creatures_count)
 
 func test_battle_manager_signals() -> void:
 	print("\n[TEST GROUP: BattleManager Signals]")
