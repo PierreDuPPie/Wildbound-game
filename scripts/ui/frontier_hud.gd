@@ -1,4 +1,5 @@
 extends CanvasLayer
+const TOUCH_SCROLL = preload("res://scripts/ui/touch_scroll_container.gd")
 const UI = preload("res://scripts/ui/frontier_theme.gd")
 const WildAtlasManager = preload("res://scripts/core/wild_atlas_manager.gd")
 var exploration: Node3D
@@ -51,19 +52,25 @@ var _friends_setup: GridContainer
 var _modal_action_rows: Array[BoxContainer] = []
 var _trade_grid: GridContainer
 var _atlas_category: String = "ALL"
-var _atlas_selected_id: String = "AF-001"
-var _atlas_realm: String = "AFRICA"
+var _atlas_selected_id: String = "WB-01"
+var _atlas_realm: String = "WILDBOUND"
 var _atlas_search_query: String = ""
 var _atlas_split: BoxContainer
 var _atlas_list_scroll: ScrollContainer
 var _atlas_detail_panel: PanelContainer
 var _atlas_detail_box: VBoxContainer
+var _atlas_toolbar: VBoxContainer
+var _atlas_view_tabs: HBoxContainer
+var _atlas_view: String = "list"
+var _browser_controls_obscured: Variant = null
 var _mobile: bool = false
 var _raw_prompt: String = ""
 var _raw_toast: String = ""
 var _mobile_menu: Button
 var _mission_toggle: Button
 var _mission_expanded: bool = false
+var _objective_popup_timer: float = 0.0
+var _objective_manual_open: bool = false
 var _saved_time: float = 0.0
 
 func _on_homestead_changed() -> void:
@@ -119,18 +126,17 @@ func _ready() -> void:
 	var objective := VBoxContainer.new()
 	_objective_box = objective
 	objective_panel.add_child(objective)
-	_objective_title = UI.label("YOUR HOMESTEAD", 15, UI.GOLD)
+	_objective_title = UI.label("SOMETHING IN THE WILD", 14, UI.GOLD)
 	objective.add_child(_objective_title)
-	_mission_toggle = UI.button("Mission", func():
-		_mission_expanded = not _mission_expanded
-		_update_mission())
+	_mission_toggle = UI.button("Mission", _toggle_mission)
 	_mission_toggle.name = "MissionSummary"
 	_mission_toggle.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_mission_toggle.clip_text = true
 	_mission_toggle.focus_mode = Control.FOCUS_NONE
+	_style_mission_toggle()
 	objective.add_child(_mission_toggle)
-	objective_label = UI.label("",22)
-	objective_label.custom_minimum_size.x = 520
+	objective_label = UI.label("", 16)
+	objective_label.custom_minimum_size.x = 0
 	objective_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	objective.add_child(objective_label)
 	_travel_row = BoxContainer.new()
@@ -205,11 +211,12 @@ func _ready() -> void:
 	SaveManager.save_completed.connect(_on_saved)
 	exploration.network.session_changed.connect(_on_session_changed)
 	exploration.network.notice.connect(toast)
+	ProgressionManager.objective_changed.connect(_on_objective_changed)
 	refresh()
 	toast_panel.visible = false
 	if not exploration.homestead.has_meta("frontier_welcome_shown"):
 		exploration.homestead.set_meta("frontier_welcome_shown", true)
-		toast("Gather nearby materials with E, then open your camp with C.",7.0)
+		toast("Your next task is in the mission panel and Backpack → Field Notes.",7.0)
 
 func _build_modal() -> void:
 	modal = Control.new()
@@ -267,9 +274,11 @@ func _reflow() -> void:
 	header_details.add_theme_constant_override("separation", 8 if _mobile else 12)
 	resources_label.visible = not _mobile
 	resources_label.add_theme_font_size_override("font_size", 22)
+	var mobile_labels: Array[String] = ["CAMP", "ATLAS", "FRIENDS", "PACK", "MENU"]
+	var desktop_labels: Array[String] = ["C  CAMP", "X  ATLAS", "M  FRIENDS", "Q  PACK", "ESC  MENU"]
 	for index in _navigation.size():
 		var button: Button = _navigation[index]
-		button.text = ["CAMP", "FRIENDS", "PACK", "MENU"][index] if _mobile else ["C  CAMP", "M  FRIENDS", "Q  PACK", "ESC  MENU"][index]
+		button.text = mobile_labels[index] if _mobile else desktop_labels[index]
 		button.custom_minimum_size = Vector2(0, 64 if _mobile else 52)
 		button.focus_mode = Control.FOCUS_NONE if _mobile else Control.FOCUS_ALL
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL if _mobile else Control.SIZE_FILL
@@ -333,13 +342,14 @@ func _reflow() -> void:
 		map.size = Vector2(128, 100)
 		map.position = _mobile_menu.position + Vector2(0, 70)
 		map.show()
-		_objective_title.text = _brand_zone.text
-		_objective_title.show()
-		_objective_title.add_theme_font_size_override("font_size", 16)
+		_objective_title.text = "🎯 " + str(ProgressionManager.get_stage().get("title", _brand_zone.text)).to_upper()
+		_objective_title.add_theme_font_size_override("font_size", 14)
 		_objective_panel.position = safe.position
-		_objective_panel.size = Vector2(minf(390, safe.size.x - 152), 0)
-		_mission_toggle.custom_minimum_size = Vector2(0, 60)
-		_mission_toggle.add_theme_font_size_override("font_size", 20)
+		_objective_panel.size = Vector2(minf(320, safe.size.x - 152), 0)
+		_mission_toggle.custom_minimum_size = Vector2(0, 38)
+		_mission_toggle.add_theme_font_size_override("font_size", 15)
+		objective_label.add_theme_font_size_override("font_size", 15)
+		_style_mission_toggle()
 		_travel_row.vertical = true
 		travel_label.hide()
 		var feedback_width := minf(540, safe.size.x - 200)
@@ -356,16 +366,63 @@ func _reflow() -> void:
 		map.size = Vector2(210, 165)
 		_objective_title.text = "YOUR HOMESTEAD"
 		travel_label.show()
+		objective_label.add_theme_font_size_override("font_size", 18)
+		objective_label.custom_minimum_size.x = 420
+	_update_mission()
+
+func _style_mission_toggle() -> void:
+	if not is_instance_valid(_mission_toggle): return
+	var pill := StyleBoxFlat.new()
+	pill.bg_color = Color(0.08, 0.16, 0.13, 0.90)
+	pill.border_color = Color(0.78, 0.70, 0.45, 0.85)
+	pill.set_border_width_all(1)
+	pill.set_corner_radius_all(19)
+	pill.content_margin_left = 14
+	pill.content_margin_right = 14
+	pill.content_margin_top = 4
+	pill.content_margin_bottom = 4
+	for state in ["normal", "hover", "focus"]:
+		_mission_toggle.add_theme_stylebox_override(state, pill)
+	var pressed := pill.duplicate() as StyleBoxFlat
+	pressed.bg_color = Color(0.18, 0.32, 0.25, 0.95)
+	pressed.border_color = Color(0.95, 0.85, 0.50, 1.0)
+	_mission_toggle.add_theme_stylebox_override("pressed", pressed)
+
+func _toggle_mission() -> void:
+	if _mission_expanded:
+		_objective_manual_open = false
+		_objective_popup_timer = 0.0
+		_mission_expanded = false
+	else:
+		_objective_manual_open = true
+		_objective_popup_timer = 0.0
+		_mission_expanded = true
+	_update_mission()
+
+func _on_objective_changed(_new_objective: String) -> void:
+	refresh()
+	_show_objective_popup(6.0)
+
+func _show_objective_popup(duration: float = 6.0) -> void:
+	_objective_popup_timer = duration
+	_mission_expanded = true
 	_update_mission()
 
 func _update_mission() -> void:
 	if not is_instance_valid(_mission_toggle): return
 	_mission_toggle.visible = _mobile
 	objective_label.visible = not _mobile or _mission_expanded
+	_objective_title.visible = not _mobile or _mission_expanded
 	var summary := objective_label.text.split("\n")[0]
-	if summary.length() > 34: summary = summary.left(32).strip_edges() + "…"
-	_mission_toggle.text = ("▾ " if _mission_expanded else "▸ ") + summary
+	if summary.length() > 30: summary = summary.left(28).strip_edges() + "…"
+	_mission_toggle.text = ("▾ " if _mission_expanded else "🎯 ") + (summary if not summary.is_empty() else "Task")
 	_mission_toggle.tooltip_text = objective_label.text
+	if _mobile:
+		if _mission_expanded:
+			_objective_panel.add_theme_stylebox_override("panel", _compact_panel())
+		else:
+			_objective_panel.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+		_objective_panel.size.y = _objective_panel.get_combined_minimum_size().y
 
 func open_navigation() -> void:
 	if current_modal == "navigation":
@@ -383,7 +440,7 @@ func open_navigation() -> void:
 		links.add_theme_constant_override("h_separation", 12)
 		links.add_theme_constant_override("v_separation", 12)
 		scroll.add_child(links)
-		for entry: Array in [["BACKPACK", func(): _open_legacy("backpack")], ["WILD ATLAS · GUIDE", open_atlas], ["CAMP & BUILD", open_camp], ["FRIENDS · EXPERIMENTAL", open_friends], ["SAVE & SETTINGS", func(): _open_legacy("menu")]]:
+		for entry: Array in [["BACKPACK", func(): _open_legacy("backpack")], ["WILD ATLAS · GUIDE", open_atlas], ["COMPANION ABILITIES", open_abilities], ["CAMP & BUILD", open_camp], ["FRIENDS · EXPERIMENTAL", open_friends], ["SAVE & SETTINGS", func(): _open_legacy("menu")]]:
 			var button := UI.button(entry[0], entry[1])
 			button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			links.add_child(button)
@@ -421,16 +478,37 @@ func _reflow_modal() -> void:
 		_atlas_split.vertical = _mobile or _modal_panel.size.x < 920
 		if is_instance_valid(_atlas_list_scroll):
 			_atlas_list_scroll.custom_minimum_size.x = 0 if _atlas_split.vertical else 380
-			_atlas_list_scroll.custom_minimum_size.y = 200 if _atlas_split.vertical else 0
+			_atlas_list_scroll.custom_minimum_size.y = 0
+		if is_instance_valid(_atlas_detail_panel):
+			_atlas_detail_panel.custom_minimum_size.x = 0 if _atlas_split.vertical else 480
+	if current_modal == "atlas" and is_instance_valid(_atlas_view_tabs):
+		_atlas_view_tabs.visible = _mobile
+		_atlas_toolbar.visible = not _mobile or _atlas_view == "list"
+		_atlas_list_scroll.visible = not _mobile or _atlas_view == "list"
+		_atlas_detail_panel.visible = not _mobile or _atlas_view == "dossier"
 	_size_modal_controls(modal_content)
 
 func _size_modal_controls(node: Node) -> void:
+	# Let genuine touch events bubble through cards and buttons to Godot's
+	# touch scroll containers, which cancel button taps during swipes.
+	if current_modal == "atlas" and node is Control and not node is ScrollBar and not node is LineEdit:
+		node.mouse_filter = Control.MOUSE_FILTER_PASS
+	if current_modal == "atlas" and node is ScrollContainer:
+		node.scroll_deadzone = 10
+		if node.vertical_scroll_mode != ScrollContainer.SCROLL_MODE_DISABLED:
+			node.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER if _mobile else ScrollContainer.SCROLL_MODE_AUTO
+		if node.horizontal_scroll_mode != ScrollContainer.SCROLL_MODE_DISABLED:
+			node.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER if _mobile else ScrollContainer.SCROLL_MODE_AUTO
 	if node is Button or node is LineEdit or node is SpinBox or node is OptionButton:
 		node.custom_minimum_size.y = 64 if _mobile else 52 if node is Button else 0
 		if _mobile:
 			node.add_theme_font_size_override("font_size", 21)
 	if node is Label:
-		node.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		var parent: Node = node.get_parent()
+		if parent is HBoxContainer or parent is GridContainer or parent is Button or parent is TabBar:
+			pass
+		elif node.custom_minimum_size.x > 0 or (node.size_flags_horizontal & Control.SIZE_EXPAND) or node.autowrap_mode != TextServer.AUTOWRAP_OFF:
+			node.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	for child: Node in node.get_children():
 		_size_modal_controls(child)
 
@@ -438,6 +516,10 @@ func _touch_copy(message: String) -> String:
 	return message.replace("E  ", "Tap Interact to ").replace("ENTER Place  ·  T Rotate  ·  ", "Place  ·  Rotate  ·  ").replace("with E", "with Interact").replace("with C", "from Camp").replace("press F", "tap Fly").replace("press Escape", "tap Cancel").replace("Hold Space to rise, Ctrl descends, F lands.", "Hold Rise to climb, Descend to lower, or tap Land.").replace("T rotates. ENTER places it. ESC cancels.", "Use Rotate, Place or Cancel below.")
 
 func _process(delta: float) -> void:
+	var obscured: bool = not current_modal.is_empty() or exploration.is_legacy_overlay_open() or not exploration.build_recipe.is_empty()
+	if OS.has_feature("web") and _browser_controls_obscured != obscured:
+		_browser_controls_obscured = obscured
+		JavaScriptBridge.eval("if (window.wildbound && window.wildbound.setControlsObscured) window.wildbound.setControlsObscured(%s);" % str(obscured))
 	var dialogue_open: bool = "dialogue_panel" in exploration.zone and is_instance_valid(exploration.zone.dialogue_panel) and exploration.zone.dialogue_panel.visible
 	# Wrapped text initially reports a tall minimum before container width is
 	# assigned. Refit feedback after layout rather than retaining that height.
@@ -489,13 +571,19 @@ func _process(delta: float) -> void:
 	if _mobile and building: toast_panel.hide()
 	if _resources_time > 0:
 		_resources_time -= delta
+	if _objective_popup_timer > 0.0:
+		_objective_popup_timer -= delta
+		if _objective_popup_timer <= 0.0 and not _objective_manual_open:
+			_mission_expanded = false
+			_update_mission()
 
 func refresh() -> void:
 	if root == null:
 		return
 	resources_label.text = "WOOD %d     STONE %d     FIBER %d     CRYSTALS %d" % [exploration.homestead.get_resource_count("wood"),exploration.homestead.get_resource_count("stone"),exploration.homestead.get_resource_count("fiber"),exploration.homestead.get_resource_count("crystals")]
 	_mobile_resources.text = "Wood %d  ·  Stone %d  ·  Fiber %d  ·  Crystals %d" % [exploration.homestead.get_resource_count("wood"),exploration.homestead.get_resource_count("stone"),exploration.homestead.get_resource_count("fiber"),exploration.homestead.get_resource_count("crystals")]
-	objective_label.text = exploration.homestead.get_active_objective()
+	objective_label.text = ProgressionManager.get_active_objective()
+	_objective_title.text = str(ProgressionManager.get_stage().get("title","SOMETHING IN THE WILD")).to_upper()
 	_update_mission()
 	travel_label.text = exploration.player.get_travel_label() if exploration.player.has_method("get_travel_label") else "ON FOOT"
 	if current_modal == "camp":
@@ -608,7 +696,7 @@ func _render_camp() -> void:
 	if is_instance_valid(_camp_grid) and _camp_grid.get_parent() is ScrollContainer:
 		previous_scroll = _camp_grid.get_parent().scroll_vertical
 	_clear_content()
-	_heading("Make a place in the wild.",_mobile_resources.text + "\nGather → build your hut → house your companions → craft riding and flight gear.")
+	_heading("Make a place in the wild.",_mobile_resources.text + "\nChapter 1: build a Creature Shelter here at Acacia Outpost, then interact beside it to care for companions.")
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -694,6 +782,7 @@ func open_atlas() -> void:
 	if current_modal == "atlas":
 		close_modal()
 	elif _open("atlas"):
+		_atlas_view = "list"
 		_render_atlas()
 
 func _render_atlas() -> void:
@@ -703,15 +792,24 @@ func _render_atlas() -> void:
 	_heading("WILD ATLAS  /  FIELD GUIDE", "%s · %d Wildlife Species Cataloged" % [realm_title, all_creatures.size()])
 
 	var toolbar := VBoxContainer.new()
+	_atlas_toolbar = toolbar
 	toolbar.add_theme_constant_override("separation", 8)
 	modal_content.add_child(toolbar)
 
+	var realm_scroll := TOUCH_SCROLL.new()
+	realm_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	realm_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	realm_scroll.custom_minimum_size.y = 50 if not _mobile else 66
+	realm_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	toolbar.add_child(realm_scroll)
+
 	var realm_row := HBoxContainer.new()
-	realm_row.add_theme_constant_override("separation", 6)
-	toolbar.add_child(realm_row)
+	realm_row.add_theme_constant_override("separation", 8)
+	realm_scroll.add_child(realm_row)
 	for realm_key: String in WildAtlasManager.get_realms():
 		var short_name: String = realm_key.replace("_", " ").capitalize()
-		if realm_key == "SOUTH_AMERICA": short_name = "S. AMERICA"
+		if realm_key == "WILDBOUND": short_name = "🐾 WILDBOUND (41)"
+		elif realm_key == "SOUTH_AMERICA": short_name = "S. AMERICA"
 		elif realm_key == "NORTH_AMERICA": short_name = "N. AMERICA"
 		elif realm_key == "POLAR_OCEANS": short_name = "POLAR/OCEAN"
 		var is_active: bool = (_atlas_realm == realm_key)
@@ -723,19 +821,26 @@ func _render_atlas() -> void:
 			if not first_list.is_empty():
 				_atlas_selected_id = first_list[0].get("id", "")
 			_render_atlas())
-		btn.custom_minimum_size = Vector2(0, 44 if not _mobile else 48)
+		btn.custom_minimum_size = Vector2(0, 44 if not _mobile else 50)
 		if is_active:
 			btn.add_theme_color_override("font_color", UI.GOLD)
 		realm_row.add_child(btn)
 
+	var filter_scroll := TOUCH_SCROLL.new()
+	filter_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	filter_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	filter_scroll.custom_minimum_size.y = 50 if not _mobile else 66
+	filter_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	toolbar.add_child(filter_scroll)
+
 	var filter_row := HBoxContainer.new()
-	filter_row.add_theme_constant_override("separation", 6)
-	toolbar.add_child(filter_row)
+	filter_row.add_theme_constant_override("separation", 8)
+	filter_scroll.add_child(filter_row)
 
 	var search_box := LineEdit.new()
-	search_box.placeholder_text = "Search name, species or trait…"
+	search_box.placeholder_text = "Search name, species, or trait…"
 	search_box.text = _atlas_search_query
-	search_box.custom_minimum_size = Vector2(240, 44 if not _mobile else 48)
+	search_box.custom_minimum_size = Vector2(250, 44 if not _mobile else 50)
 	search_box.text_changed.connect(func(new_text: String):
 		_atlas_search_query = new_text
 		_refresh_atlas_list())
@@ -752,23 +857,28 @@ func _render_atlas() -> void:
 		var cat_btn := UI.button(display_cat, func():
 			_atlas_category = cat
 			_refresh_atlas_list())
-		cat_btn.custom_minimum_size = Vector2(0, 44 if not _mobile else 48)
+		cat_btn.custom_minimum_size = Vector2(0, 44 if not _mobile else 50)
 		if is_cat_active:
 			cat_btn.add_theme_color_override("font_color", UI.GOLD)
 		filter_row.add_child(cat_btn)
 
+	_atlas_view_tabs = HBoxContainer.new()
+	_atlas_view_tabs.add_child(UI.button("CREATURES", func(): _show_atlas_view("list")))
+	_atlas_view_tabs.add_child(UI.button("DOSSIER", func(): _show_atlas_view("dossier")))
+	modal_content.add_child(_atlas_view_tabs)
 	var split := BoxContainer.new()
 	_atlas_split = split
 	split.vertical = _mobile or _modal_panel.size.x < 920
+	split.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	split.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	split.add_theme_constant_override("separation", 14)
 	modal_content.add_child(split)
 
-	var list_scroll := ScrollContainer.new()
+	var list_scroll := TOUCH_SCROLL.new()
 	_atlas_list_scroll = list_scroll
 	list_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	list_scroll.custom_minimum_size.x = 0 if split.vertical else 380
-	list_scroll.custom_minimum_size.y = 200 if split.vertical else 0
+	list_scroll.custom_minimum_size.y = 0
 	list_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	split.add_child(list_scroll)
 
@@ -782,10 +892,12 @@ func _render_atlas() -> void:
 	_atlas_detail_panel = detail_panel
 	detail_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	detail_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	detail_panel.custom_minimum_size.x = 0 if split.vertical else 480
 	detail_panel.add_theme_stylebox_override("panel", UI.panel(Color("162b26"), UI.GOLD if not _mobile else Color("324d44")))
 	split.add_child(detail_panel)
 
-	var detail_scroll := ScrollContainer.new()
+	var detail_scroll := TOUCH_SCROLL.new()
+	detail_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	detail_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	detail_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	detail_panel.add_child(detail_scroll)
@@ -793,7 +905,7 @@ func _render_atlas() -> void:
 	var detail_vbox := VBoxContainer.new()
 	_atlas_detail_box = detail_vbox
 	detail_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	detail_vbox.add_theme_constant_override("separation", 12)
+	detail_vbox.add_theme_constant_override("separation", 14)
 	detail_scroll.add_child(detail_vbox)
 
 	_populate_atlas_list(list_vbox)
@@ -812,35 +924,42 @@ func _populate_atlas_list(list_vbox: VBoxContainer) -> void:
 		return
 
 	var found_selected: bool = false
-	for item: Dictionary in filtered:
-		if item.get("id", "") == _atlas_selected_id:
+	for item_var: Variant in filtered:
+		if item_var is Dictionary and item_var.get("id", "") == _atlas_selected_id:
 			found_selected = true
 			break
 	if not found_selected and not filtered.is_empty():
 		_atlas_selected_id = filtered[0].get("id", "")
 
-	for item: Dictionary in filtered:
+	for item_var: Variant in filtered:
+		if not (item_var is Dictionary):
+			continue
+		var item: Dictionary = item_var
 		var cid: String = item.get("id", "")
 		var cname: String = item.get("name", "")
 		var cspecies: String = item.get("species", "")
-		var is_bonded: bool = WildAtlasManager.is_bonded_starter(cname) or WildAtlasManager.is_bonded_starter(cspecies)
+		var is_in_game: bool = item.get("is_in_game", false)
+		var is_bonded: bool = is_in_game or WildAtlasManager.is_bonded_starter(cname) or WildAtlasManager.is_bonded_starter(cspecies)
 		var is_active: bool = (cid == _atlas_selected_id)
 
 		var btn := Button.new()
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		btn.custom_minimum_size.y = 48 if not _mobile else 54
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var badge := " ★ BONDED" if is_bonded else " 📖"
+		var badge := " ★ WILDBOUND" if is_in_game else (" ★ BONDED" if is_bonded else " 📖")
 		btn.text = "%s %s (%s)%s" % [cid, cname, cspecies, badge]
 		if is_active:
 			btn.add_theme_color_override("font_color", UI.GOLD)
 			btn.add_theme_stylebox_override("normal", UI.panel(Color("2a4e43"), UI.GOLD))
-		elif is_bonded:
+		elif is_in_game:
 			btn.add_theme_color_override("font_color", UI.GREEN)
+		elif is_bonded:
+			btn.add_theme_color_override("font_color", Color("81c784"))
 
 		btn.pressed.connect(func():
 			_atlas_selected_id = cid
 			_update_atlas_selection()
+			if _mobile: _show_atlas_view("dossier")
 			for other_btn in list_vbox.get_children():
 				if other_btn is Button:
 					var other_id: String = other_btn.text.split(" ")[0]
@@ -879,40 +998,59 @@ func _update_atlas_selection() -> void:
 	var sci_name: String = item.get("scientific_name", "")
 	var category: String = item.get("category", "")
 	var aspect: String = item.get("aspect", "Wild")
-	var is_bonded: bool = WildAtlasManager.is_bonded_starter(cname) or WildAtlasManager.is_bonded_starter(cspecies)
+	var is_in_game: bool = item.get("is_in_game", false)
+	var is_bonded: bool = is_in_game or WildAtlasManager.is_bonded_starter(cname) or WildAtlasManager.is_bonded_starter(cspecies)
+	var species_id: String = item.get("species_id", "")
 
+	# 1. HEADER CARD (Framed picture + Name & Identity)
 	var header_box := HBoxContainer.new()
-	header_box.add_theme_constant_override("separation", 16)
+	header_box.add_theme_constant_override("separation", 18)
+	header_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_atlas_detail_box.add_child(header_box)
 
-	var sprite_texture: Texture2D = _find_creature_sprite(cname, cspecies)
+	var sprite_texture: Texture2D = _find_creature_sprite(cname, cspecies, species_id)
+	
+	var img_frame := PanelContainer.new()
+	img_frame.custom_minimum_size = Vector2(160, 160)
+	img_frame.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	img_frame.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	img_frame.add_theme_stylebox_override("panel", UI.panel(Color("0f201b"), UI.GOLD if is_bonded else Color("324c41")))
+	header_box.add_child(img_frame)
+
 	if sprite_texture != null:
 		var tex_rect := TextureRect.new()
 		tex_rect.texture = sprite_texture
-		tex_rect.custom_minimum_size = Vector2(140, 140)
+		tex_rect.custom_minimum_size = Vector2(150, 150)
+		tex_rect.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		tex_rect.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		tex_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		header_box.add_child(tex_rect)
+		img_frame.add_child(tex_rect)
 	else:
 		var emblem := PanelContainer.new()
-		emblem.custom_minimum_size = Vector2(100, 100)
-		emblem.add_theme_stylebox_override("panel", UI.panel(Color("223e37"), UI.GOLD if is_bonded else Color("40554b")))
-		var emblem_lbl := UI.label(aspect.left(1) + "\n" + cname.left(2).to_upper(), 24, UI.GOLD)
+		emblem.custom_minimum_size = Vector2(140, 140)
+		emblem.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		emblem.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		emblem.add_theme_stylebox_override("panel", UI.panel(Color("162e26"), Color("40554b")))
+		var emblem_lbl := UI.label("📖\n%s\n%s" % [aspect, cname.left(3).to_upper()], 20, UI.GOLD)
 		emblem_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		emblem_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		emblem.add_child(emblem_lbl)
-		header_box.add_child(emblem)
+		img_frame.add_child(emblem)
 
 	var name_box := VBoxContainer.new()
 	name_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	name_box.add_theme_constant_override("separation", 4)
+	name_box.add_theme_constant_override("separation", 6)
 	header_box.add_child(name_box)
 
-	var title_lbl := UI.label("%s  [%s]" % [cname.to_upper(), item.get("id", "")], 28, UI.GOLD)
+	var title_lbl := UI.label("%s  [%s]" % [cname.to_upper(), item.get("id", "")], 26, UI.GOLD)
 	title_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	name_box.add_child(title_lbl)
 
-	var sub_lbl := UI.label("%s  ·  %s" % [cspecies, sci_name], 18, UI.MUTED)
+	var sub_text := cspecies
+	if not sci_name.is_empty() and sci_name != cspecies:
+		sub_text += "  ·  " + sci_name
+	var sub_lbl := UI.label(sub_text, 17, UI.MUTED)
 	sub_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	name_box.add_child(sub_lbl)
 
@@ -920,29 +1058,194 @@ func _update_atlas_selection() -> void:
 	tags_row.add_theme_constant_override("separation", 10)
 	name_box.add_child(tags_row)
 
-	var status_tag := UI.label("★ BONDED COMPANION" if is_bonded else "📖 FIELD GUIDE OBSERVATION", 16, UI.GREEN if is_bonded else UI.MUTED)
+	var status_text := "★ WILDBOUND ROSTER" if is_in_game else ("★ BONDED STARTER" if is_bonded else "📖 FIELD ENTRY")
+	var status_tag := UI.label(status_text, 15, UI.GREEN if is_bonded else UI.MUTED)
+	status_tag.autowrap_mode = TextServer.AUTOWRAP_OFF
 	tags_row.add_child(status_tag)
 
-	var aspect_tag := UI.label("✦ %s  ·  %s" % [aspect, category], 16, UI.GOLD)
+	var aspect_tag := UI.label("✦ %s  ·  %s" % [aspect, category], 15, UI.GOLD)
+	aspect_tag.autowrap_mode = TextServer.AUTOWRAP_OFF
 	tags_row.add_child(aspect_tag)
+
+	if item.has("rarity") and not str(item["rarity"]).is_empty():
+		var rarity_tag := UI.label("◆ %s" % str(item["rarity"]).to_upper(), 15, Color("81d4fa"))
+		rarity_tag.autowrap_mode = TextServer.AUTOWRAP_OFF
+		tags_row.add_child(rarity_tag)
 
 	var sep := HSeparator.new()
 	_atlas_detail_box.add_child(sep)
 
+	# 2. COMBAT ATTRIBUTES & BASE STATS
+	var stats_dict: Dictionary = item.get("stats", {})
+	if not stats_dict.is_empty():
+		var stats_panel := PanelContainer.new()
+		stats_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		stats_panel.add_theme_stylebox_override("panel", UI.panel(Color("10221c"), Color("2e4a3f")))
+		_atlas_detail_box.add_child(stats_panel)
+
+		var stats_vbox := VBoxContainer.new()
+		stats_vbox.add_theme_constant_override("separation", 8)
+		stats_panel.add_child(stats_vbox)
+
+		var stats_header := HBoxContainer.new()
+		stats_header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		stats_vbox.add_child(stats_header)
+
+		var stats_title := UI.label("⚔ BASE ATTRIBUTES & COMBAT RATINGS", 18, UI.GOLD)
+		stats_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		stats_header.add_child(stats_title)
+
+		var bst: int = item.get("stat_total", 0)
+		if bst > 0:
+			var bst_lbl := UI.label("TOTAL RATING: %d" % bst, 16, UI.GREEN)
+			stats_header.add_child(bst_lbl)
+
+		var stat_grid := GridContainer.new()
+		stat_grid.columns = 2
+		stat_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		stat_grid.add_theme_constant_override("h_separation", 24)
+		stat_grid.add_theme_constant_override("v_separation", 8)
+		stats_vbox.add_child(stat_grid)
+
+		var stat_defs := [
+			{"key": "vitality", "label": "VITALITY", "color": Color("4caf50")},
+			{"key": "power", "label": "POWER", "color": Color("ef5350")},
+			{"key": "guard", "label": "GUARD", "color": Color("42a5f5")},
+			{"key": "agility", "label": "AGILITY", "color": Color("ffd54f")},
+			{"key": "focus", "label": "FOCUS", "color": Color("ba68c8")},
+			{"key": "instinct", "label": "INSTINCT", "color": Color("ff8a65")}
+		]
+
+		for def in stat_defs:
+			var skey: String = def["key"]
+			var sval: int = int(stats_dict.get(skey, 40))
+			var scolor: Color = def["color"]
+
+			var s_row := HBoxContainer.new()
+			s_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			s_row.add_theme_constant_override("separation", 8)
+			stat_grid.add_child(s_row)
+
+			var s_name := UI.label("%s: %d" % [def["label"], sval], 15, scolor)
+			s_name.custom_minimum_size.x = 110
+			s_name.autowrap_mode = TextServer.AUTOWRAP_OFF
+			s_row.add_child(s_name)
+
+			var pbar := ProgressBar.new()
+			pbar.min_value = 0
+			pbar.max_value = 130
+			pbar.value = sval
+			pbar.show_percentage = false
+			pbar.custom_minimum_size = Vector2(80, 12)
+			pbar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			pbar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+
+			var bg_sb := StyleBoxFlat.new()
+			bg_sb.bg_color = Color("0a1814")
+			bg_sb.set_corner_radius_all(3)
+			pbar.add_theme_stylebox_override("background", bg_sb)
+
+			var fill_sb := StyleBoxFlat.new()
+			fill_sb.bg_color = scolor
+			fill_sb.set_corner_radius_all(3)
+			pbar.add_theme_stylebox_override("fill", fill_sb)
+
+			s_row.add_child(pbar)
+
+	# 3. ABILITIES, INSTINCTS & COMBAT MOVES
+	var moves_panel := PanelContainer.new()
+	moves_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	moves_panel.add_theme_stylebox_override("panel", UI.panel(Color("10221c"), Color("2e4a3f")))
+	_atlas_detail_box.add_child(moves_panel)
+
+	var moves_vbox := VBoxContainer.new()
+	moves_vbox.add_theme_constant_override("separation", 10)
+	moves_panel.add_child(moves_vbox)
+
+	var moves_head := UI.label("✦ FIELD ABILITIES & MOVE LEARNSET", 18, UI.GOLD)
+	moves_vbox.add_child(moves_head)
+
+	# Exploration Trait / Ability
+	var trait_str: String = item.get("exploration_trait", "")
+	if not trait_str.is_empty():
+		var t_box := VBoxContainer.new()
+		t_box.add_theme_constant_override("separation", 2)
+		moves_vbox.add_child(t_box)
+		var t_title := UI.label("EXPLORATION ABILITY:", 15, UI.GREEN)
+		t_title.autowrap_mode = TextServer.AUTOWRAP_OFF
+		t_box.add_child(t_title)
+		var t_desc := UI.label(trait_str, 16, UI.TEXT)
+		t_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		t_box.add_child(t_desc)
+
+	# Instinct Trait
+	var instinct_name: String = item.get("instinct_name", "")
+	if not instinct_name.is_empty():
+		var ins_box := VBoxContainer.new()
+		ins_box.add_theme_constant_override("separation", 2)
+		moves_vbox.add_child(ins_box)
+		var ins_title := UI.label("BATTLE INSTINCT: %s" % instinct_name, 15, Color("ffca28"))
+		ins_title.autowrap_mode = TextServer.AUTOWRAP_OFF
+		ins_box.add_child(ins_title)
+		var ins_desc_str: String = item.get("instinct_desc", "")
+		if not ins_desc_str.is_empty():
+			var ins_desc := UI.label(ins_desc_str, 16, UI.TEXT)
+			ins_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			ins_box.add_child(ins_desc)
+
+	# Signature Move & Learnset
+	var learnset_arr: Array = item.get("learnset", [])
+	var sig_move: String = item.get("signature_move", "Strike")
+	var move_box := VBoxContainer.new()
+	move_box.add_theme_constant_override("separation", 4)
+	moves_vbox.add_child(move_box)
+
+	var move_title := UI.label("COMBAT TECHNIQUES:", 15, Color("80cbc4"))
+	move_title.autowrap_mode = TextServer.AUTOWRAP_OFF
+	move_box.add_child(move_title)
+
+	var move_pills_row := HBoxContainer.new()
+	move_pills_row.add_theme_constant_override("separation", 8)
+	move_box.add_child(move_pills_row)
+
+	var moves_to_show: Array = []
+	if not learnset_arr.is_empty():
+		moves_to_show = learnset_arr
+	else:
+		moves_to_show = [sig_move]
+
+	for m_name_variant: Variant in moves_to_show:
+		var m_name := str(m_name_variant)
+		var pill := PanelContainer.new()
+		pill.add_theme_stylebox_override("panel", UI.panel(Color("1b3830"), UI.GOLD if m_name == sig_move else Color("3b6354")))
+		var pill_lbl := UI.label(" %s%s " % ["★ " if m_name == sig_move else "", m_name], 14, UI.GOLD if m_name == sig_move else UI.TEXT)
+		pill_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
+		pill.add_child(pill_lbl)
+		move_pills_row.add_child(pill)
+
+	# Evolution
+	var evo_str: String = item.get("evolution", "")
+	if not evo_str.is_empty():
+		var evo_lbl := UI.label("🧬 PROGRESSION: %s" % evo_str, 15, Color("80deea"))
+		evo_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
+		moves_vbox.add_child(evo_lbl)
+
+	# 4. ECOLOGY & HABITAT
 	var env_grid := GridContainer.new()
 	env_grid.columns = 2
 	env_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	env_grid.add_theme_constant_override("h_separation", 16)
+	env_grid.add_theme_constant_override("h_separation", 20)
 	_atlas_detail_box.add_child(env_grid)
 
-	var hab_lbl := UI.label("HABITAT:  %s" % item.get("habitat", "Wilds"), 17, UI.TEXT)
+	var hab_lbl := UI.label("HABITAT:  %s" % item.get("habitat", "Wilds"), 16, UI.TEXT)
 	hab_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	env_grid.add_child(hab_lbl)
 
-	var diet_lbl := UI.label("DIET:  %s" % item.get("diet", "Forager"), 17, UI.TEXT)
+	var diet_lbl := UI.label("DIET:  %s" % item.get("diet", "Forager"), 16, UI.TEXT)
 	diet_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	env_grid.add_child(diet_lbl)
 
+	# 5. REAL WILDLIFE FACTS & NATURE SECRETS
 	var edu_panel := PanelContainer.new()
 	edu_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	edu_panel.add_theme_stylebox_override("panel", UI.panel(Color("102420"), Color("507d6d")))
@@ -955,50 +1258,65 @@ func _update_atlas_selection() -> void:
 	var edu_head := UI.label("★ REAL WILDLIFE FACTS & NATURE SECRETS", 18, UI.GOLD)
 	edu_vbox.add_child(edu_head)
 
-	var edu_text := UI.label(item.get("education", "No field notes recorded yet."), 18, UI.TEXT)
+	var edu_text := UI.label(item.get("education", "No field notes recorded yet."), 17, UI.TEXT)
 	edu_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	edu_vbox.add_child(edu_text)
 
-	var trait_box := VBoxContainer.new()
-	trait_box.add_theme_constant_override("separation", 4)
-	_atlas_detail_box.add_child(trait_box)
+func _find_creature_sprite(cname: String, cspecies: String, species_id: String = "") -> Texture2D:
+	var candidates: Array[String] = []
+	if not species_id.is_empty():
+		candidates.append(species_id.to_lower())
 
-	var trait_head := UI.label("✦ EXPLORATION TRADE & FIELD TRAIT", 18, UI.GREEN)
-	trait_box.add_child(trait_head)
+	var name_clean := cname.to_lower().replace(" ", "_").replace("-", "_")
+	candidates.append(name_clean)
+	var spec_clean := cspecies.to_lower().replace(" ", "_").replace("-", "_")
+	candidates.append(spec_clean)
 
-	var trait_text := UI.label(item.get("exploration_trait", "None discovered."), 17, UI.TEXT)
-	trait_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	trait_box.add_child(trait_text)
+	var alias_map := {
+		"buffalord": "buffalox",
+		"hippotank": "hippotam",
+		"zebrafleet": "zebrafly",
+		"honey_badger": "ratelit",
+		"suricate": "meerkit",
+		"meerkat": "meerkit",
+		"ground_pangolin": "pangolet",
+		"cheetah": "cheetan",
+		"african_lion": "lionet",
+		"common_warthog": "warthusk",
+		"cape_vulture": "vulturon",
+		"african_dung_beetle": "rollbug",
+		"dung_beetle": "rollbug"
+	}
+	for alias_k: String in alias_map:
+		if alias_k in name_clean or alias_k in spec_clean:
+			candidates.append(alias_map[alias_k])
 
-	var combat_box := VBoxContainer.new()
-	combat_box.add_theme_constant_override("separation", 4)
-	_atlas_detail_box.add_child(combat_box)
+	var tree := get_tree()
+	if tree != null and tree.root != null:
+		var pm = tree.root.get_node_or_null("PartyManager")
+		if pm != null and pm.has_method("species_lookup"):
+			var lookup: Dictionary = pm.species_lookup()
+			for cand in candidates:
+				var sname := StringName(cand)
+				if lookup.has(sname):
+					var sp: CreatureSpecies = lookup[sname]
+					if sp != null:
+						if sp.battle_sprite != null: return sp.battle_sprite
+						if sp.atlas_portrait != null: return sp.atlas_portrait
+						if sp.icon != null: return sp.icon
 
-	var move_text := UI.label("Signature Move: %s" % item.get("signature_move", "Strike"), 16, UI.GOLD)
-	combat_box.add_child(move_text)
-
-	var notes_text := UI.label("Field Observations: %s" % item.get("visual_notes", ""), 16, UI.MUTED)
-	notes_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	combat_box.add_child(notes_text)
-
-func _find_creature_sprite(cname: String, cspecies: String) -> Texture2D:
-	var keys := [
-		cname.to_lower(),
-		cspecies.to_lower().replace(" ", "_"),
-		cname.to_lower().replace(" ", "_")
-	]
-	if cname.to_lower() == "lionet": keys.append("lionet")
-	elif cname.to_lower() == "cheetan": keys.append("cheetan")
-	elif cname.to_lower() == "warthusk": keys.append("warthusk")
-	elif cname.to_lower() == "pangolet": keys.append("pangolet")
-	elif cname.to_lower() == "vulturon": keys.append("vulturon")
-	elif cname.to_lower() == "ratelit": keys.append("ratelit")
-	elif cname.to_lower() == "meerkit": keys.append("meerkit")
-
-	for k in keys:
-		var p := "res://assets/sprites/creatures/%s/battle_idle.png" % k
+	for cand in candidates:
+		var p := "res://assets/sprites/creatures/%s/battle_idle.png" % cand
 		if ResourceLoader.exists(p):
 			return load(p) as Texture2D
+
+	for sp_key in WildAtlasManager.WILDBOUND_ORDER:
+		var sk: String = str(sp_key)
+		if sk in name_clean or sk in spec_clean:
+			var p := "res://assets/sprites/creatures/%s/battle_idle.png" % sk
+			if ResourceLoader.exists(p):
+				return load(p) as Texture2D
+
 	return null
 
 func open_friends() -> void:
@@ -1209,3 +1527,42 @@ func _render_trade(trade: Dictionary, snapshot: Dictionary, local_id: int) -> vo
 	lobby_content.add_child(confirm)
 	lobby_content.add_child(UI.label("Changing an offer clears both confirmations. No transfer happens until both agree.",17,UI.MUTED))
 	lobby_content.add_child(UI.button("CANCEL TRADE",func(): exploration.network.cancel_interaction()))
+
+func open_abilities() -> void:
+	if current_modal == "abilities":
+		close_modal()
+		return
+	if not _open("abilities"): return
+	_clear_content()
+	_heading("Companion abilities", "Use a healthy party companion. Temporary story help never changes your roster.")
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	modal_content.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list.add_theme_constant_override("separation",18)
+	scroll.add_child(list)
+	var entries: Array[Dictionary] = exploration.player.get_available_exploration_abilities()
+	var guest: CreatureInstance = exploration.chapter.get_guest()
+	if guest != null:
+		entries.append({"ability":guest.species.exploration_ability,"companion":guest,"guest":true})
+	if entries.is_empty():
+		var hint := UI.label("No healthy companion here has a field ability. Ratelit: Burrow Breaker · Meerkit: Sentry Scan · Cheetan: Savannah Sprint.\nStory Ratelit will help at the rockfall after you aid the injured Pangolet.",20,UI.MUTED)
+		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		list.add_child(hint)
+	for entry: Dictionary in entries:
+		var ability: ExplorationAbility = entry.ability
+		var info := UI.label(ability.display_name + (" · Story companion" if entry.get("guest",false) else "") + "\n" + ability.description,20,UI.TEXT)
+		info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		list.add_child(info)
+		list.add_child(UI.button("USE " + ability.display_name.to_upper(),func():
+			close_modal()
+			var result: Dictionary = exploration.player.activate_exploration_ability(ability.ability_id,null,exploration,guest if entry.get("guest",false) else null)
+			toast(result.message)
+			if result.success: exploration.save_progress()))
+	_reflow_modal()
+
+func _show_atlas_view(view: String) -> void:
+	_atlas_view = view
+	_reflow_modal()

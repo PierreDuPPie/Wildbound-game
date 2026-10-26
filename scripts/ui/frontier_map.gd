@@ -21,6 +21,16 @@ func _draw() -> void:
 		var pos: Dictionary = structure["position"]
 		draw_rect(Rect2(_point(Vector3(pos["x"], 0, pos["z"]), bounds, area) - Vector2(3,3), Vector2(6,6)), Color("e2bc76"))
 	var player_pos: Vector2 = _point(exploration.player.global_position, bounds, area)
+	var stage: Dictionary = ProgressionManager.get_stage()
+	if stage.get("zone", "") == exploration.zone_id:
+		var p: Array = stage.get("position", [0,0,0])
+		var goal := Vector3(p[0],p[1],p[2])
+		if is_instance_valid(exploration.chapter):
+			for marker: Dictionary in exploration.chapter.markers:
+				if marker.id == stage.get("target", ""): goal = marker.node.global_position
+		var point := _point(goal, bounds, area)
+		draw_circle(point,6,Color("e2bc76"))
+		draw_arc(point,9,0,TAU,24,Color("e2bc76"),1,true)
 	draw_circle(player_pos, 5.0, Color("f3efdf"))
 	draw_arc(player_pos, 9, 0, TAU, 24, Color("f3efdf"), 1.0, true)
 

@@ -55,6 +55,9 @@ var _was_grounded: bool = false
 var _gait: float = 0.0
 var _sprint_blend: float = 0.0
 var _landing_squash: float = 0.0
+var _ability_cooldowns: Dictionary = {}
+var _speed_surge_remaining: float = 0.0
+var _speed_surge_multiplier: float = 1.0
 
 func _ready() -> void:
 	last_safe_position = global_position
@@ -105,6 +108,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 func _physics_process(delta: float) -> void:
+	_tick_exploration_effects(delta)
 	if _ignore_jump_until_release and not _action_pressed(&"jump"):
 		_ignore_jump_until_release = false
 	var grounded_before := is_on_floor()
@@ -137,6 +141,9 @@ func _physics_process(delta: float) -> void:
 			current_accel = 16.0
 			current_decel = 20.0
 
+	if not _flying and _speed_surge_remaining > 0.0:
+		current_speed *= _speed_surge_multiplier
+		current_accel *= _speed_surge_multiplier
 	var rate := current_accel if not direction.is_zero_approx() else current_decel
 	# Acceleration is in metres per second squared, stable at any frame rate.
 	velocity.x = move_toward(velocity.x, direction.x * current_speed, rate * delta)
@@ -372,6 +379,64 @@ func _owned_companions() -> Array[CreatureInstance]:
 		if companion is CreatureInstance:
 			result.append(companion)
 	return result
+
+## Only healthy active party members supply field abilities; storage remains for riding.
+func get_available_exploration_abilities() -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	var manager := get_node_or_null("/root/PartyManager")
+	if manager == null:
+		return result
+	for companion in manager.get("party"):
+		if companion is CreatureInstance and companion.is_conscious() and companion.species != null and companion.species.exploration_ability != null:
+			result.append({"ability": companion.species.exploration_ability, "companion": companion})
+	return result
+
+func activate_exploration_ability(ability_id: StringName = &"", target: Node3D = null, context: Node3D = null, guest_companion: CreatureInstance = null) -> Dictionary:
+	if not movement_enabled or _flying:
+		return _feedback(false, "Use companion abilities on the ground with menus closed.")
+	var entries := get_available_exploration_abilities()
+	if guest_companion != null and guest_companion.is_conscious() and guest_companion.species != null and guest_companion.species.exploration_ability != null:
+		entries.append({"ability": guest_companion.species.exploration_ability, "companion": guest_companion})
+	for entry in entries:
+		var ability: ExplorationAbility = entry["ability"]
+		if ability_id != &"" and ability.ability_id != ability_id:
+			continue
+		if float(_ability_cooldowns.get(ability.ability_id, 0.0)) > 0.0:
+			return _feedback(false, "%s is recovering (%.1fs)." % [ability.display_name, _ability_cooldowns[ability.ability_id]])
+		var ability_target := target
+		if ability_target == null and ability.activation_type == &"target":
+			var nearest := ability.activation_range
+			for candidate in get_tree().get_nodes_in_group(ability.target_group):
+				if candidate is Node3D and ability.can_activate(self, candidate, entry["companion"]):
+					var distance := global_position.distance_to(candidate.global_position)
+					if distance <= nearest:
+						nearest = distance
+						ability_target = candidate
+		if not ability.can_activate(self, ability_target, entry["companion"]):
+			return _feedback(false, "No suitable nearby target for %s." % ability.display_name)
+		var result: Dictionary = ability.activate(self, ability_target, entry["companion"], context)
+		if bool(result.get("success", false)):
+			_ability_cooldowns[ability.ability_id] = ability.cooldown
+		travel_feedback.emit(str(result.get("message", ability.display_name)))
+		return result
+	return _feedback(false, "Bring a healthy companion with that field ability in your party.")
+
+func apply_speed_surge(multiplier: float, duration: float) -> void:
+	_speed_surge_multiplier = clampf(multiplier, 1.0, 3.0)
+	_speed_surge_remaining = clampf(duration, 0.0, 10.0)
+
+func has_speed_surge() -> bool:
+	return _speed_surge_remaining > 0.0 and not _flying
+
+func _tick_exploration_effects(delta: float) -> void:
+	# Menus pause timed field effects instead of wasting the player's sprint.
+	if not movement_enabled:
+		return
+	_speed_surge_remaining = maxf(0.0, _speed_surge_remaining - delta)
+	if _speed_surge_remaining <= 0.0:
+		_speed_surge_multiplier = 1.0
+	for key in _ability_cooldowns:
+		_ability_cooldowns[key] = maxf(0.0, float(_ability_cooldowns[key]) - delta)
 
 func _find_companion(species_ids: Array[StringName]) -> CreatureInstance:
 	for companion in _owned_companions():

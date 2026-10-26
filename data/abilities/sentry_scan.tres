@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="SentryScanAbility" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/abilities/sentry_scan_ability.gd" id="1_scan"]
+
+[resource]
+script = ExtResource("1_scan")
+ability_id = &"sentry_scan"
+display_name = "Sentry Scan"
+description = "Meerkit perches and scans the terrain, revealing resources, clues, and animal tracks."
+activation_type = &"radial_pulse"
+cooldown = 4.0
+prompt_text = "Meerkit: Sentry Scan"
+scan_radius = 18.0

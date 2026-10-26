@@ -8,6 +8,7 @@ signal resource_node_ready(node_id: String)
 signal structure_placed(structure: Dictionary)
 signal structure_removed(structure_id: String)
 signal equipment_crafted(recipe_id: String)
+signal shelter_cared(structure_id: String)
 signal milestone_completed(milestone_id: String)
 
 const SAVE_VERSION: int = 1
@@ -25,6 +26,7 @@ const ZONE_BOUNDS: Dictionary = {
 	"route_02_3d": Rect2(-32.0, -23.0, 64.0, 46.0)
 }
 const RECIPES: Dictionary = {
+	"creature_shelter": {"label": "Creature Shelter", "description": "A shaded sanctuary with water and bedding. Visit to care for your companions.", "kind": "structure", "cost": {"wood": 6, "stone": 2, "fiber": 4}, "radius": 2.8, "requires": []},
 	"campfire": {"label": "Campfire", "description": "A warm gathering place for your camp.", "kind": "structure", "cost": {"wood": 4, "stone": 3}, "radius": 1.4, "requires": []},
 	"hut": {"label": "Ranger Hut", "description": "Start your homestead and unlock creature facilities.", "kind": "structure", "cost": {"wood": 10, "stone": 4, "fiber": 6}, "radius": 2.6, "requires": []},
 	"fence": {"label": "Fence", "description": "Mark out a paddock or a garden around your camp.", "kind": "structure", "cost": {"wood": 3, "fiber": 1}, "radius": 1.2, "requires": []},
@@ -219,6 +221,44 @@ func get_structures_for_zone(zone_id: String) -> Array[Dictionary]:
 		if structure["zone_id"] == zone_id:
 			result.append(structure.duplicate(true))
 	return result
+
+## Care is granted only by a real, nearby shelter in the caller's current zone.
+## HP/status already persist through PartyManager; the shelter uses the existing
+## structure save schema, so older saves need no migration.
+func care_at_shelter(structure_id: String, zone_id: String, player_position: Vector3) -> Dictionary:
+	if not ZONE_BOUNDS.has(zone_id) or not player_position.is_finite():
+		return _failure("Choose a valid sanctuary location.")
+	var shelter: Dictionary = {}
+	for structure: Dictionary in structures:
+		if structure["id"] == structure_id and structure["zone_id"] == zone_id and structure["recipe_id"] == "creature_shelter":
+			shelter = structure
+			break
+	if shelter.is_empty():
+		return _failure("This creature shelter is no longer available.")
+	var at: Dictionary = shelter["position"]
+	var origin := Vector3(float(at["x"]), float(at["y"]), float(at["z"]))
+	if absf(player_position.y - origin.y) > 2.0 or Vector2(player_position.x - origin.x, player_position.z - origin.z).length() > 4.8:
+		return _failure("Move closer to the creature shelter to care for your companions.")
+	var companions: Array[CreatureInstance] = []
+	var party_manager: Node = get_node_or_null("/root/PartyManager") if is_inside_tree() else null
+	if party_manager == null:
+		return _failure("Companion care is unavailable right now.")
+	companions.append_array(party_manager.party)
+	companions.append_array(party_manager.reserve_storage)
+	var cared_for: int = 0
+	for creature: CreatureInstance in companions:
+		if creature != null:
+			creature.heal_full()
+			cared_for += 1
+	if cared_for == 0:
+		return _failure("Bring a companion to your creature shelter first.")
+	# Care is a gameplay transaction. Do not refund the building after using it.
+	_undo_structure_id = ""
+	_undo_before.clear()
+	_undo_after.clear()
+	shelter_cared.emit(structure_id)
+	changed.emit()
+	return {"success": true, "message": "%d companions rested, drank water and recovered at the shelter." % cared_for, "cared_for": cared_for, "structure_id": structure_id}
 
 func get_active_objective() -> String:
 	if not has_structure("hut"):

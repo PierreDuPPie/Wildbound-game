@@ -27,6 +27,7 @@ var _build_cursor := Vector3.ZERO
 var _build_previous_movement: bool = true
 var _placement_cooldown: float = 0.0
 var _undo_remaining: float = 0.0
+var chapter: Node3D
 
 func _ready() -> void:
 	name = "Exploration"
@@ -42,6 +43,17 @@ func _ready() -> void:
 	hud = preload("res://scripts/ui/frontier_hud.gd").new()
 	hud.exploration = self
 	add_child(hud)
+	chapter = preload("res://scripts/world3d/chapter_world.gd").new()
+	chapter.exploration = self
+	add_child(chapter)
+	var residents = preload("res://scripts/world3d/sanctuary_residents.gd").new()
+	zone.add_child(residents)
+	residents.configure(zone_id)
+	ProgressionManager.chapter_changed.connect(func(): hud.refresh())
+	homestead.shelter_cared.connect(func(_id):
+		if zone_id == "sanctuary_town":
+			ProgressionManager.record_chapter_event("shelter_cared")
+			save_progress())
 	if player.has_signal("travel_feedback"):
 		player.travel_feedback.connect(func(message: String): hud.toast(message))
 	if player.has_signal("travel_changed"):
@@ -129,8 +141,13 @@ func _input(event: InputEvent) -> void:
 		KEY_X:
 			hud.open_atlas()
 			get_viewport().set_input_as_handled()
+		KEY_G:
+			hud.open_abilities()
+			get_viewport().set_input_as_handled()
 		KEY_E:
-			if not _nearest_resource.is_empty():
+			if chapter.try_interact():
+				get_viewport().set_input_as_handled()
+			elif not _nearest_resource.is_empty():
 				gather_nearest()
 				get_viewport().set_input_as_handled()
 			elif not _nearest_structure.is_empty():
@@ -206,6 +223,10 @@ func _update_prompt() -> void:
 		hud.tick("")
 		return
 	var nearest: float = 2.6
+	var story_prompt: String = chapter.get_prompt() if is_instance_valid(chapter) else ""
+	if not story_prompt.is_empty():
+		hud.tick(story_prompt)
+		return
 	for entry: Dictionary in resource_nodes:
 		if homestead.is_node_collected(entry["id"]):
 			continue
@@ -225,7 +246,7 @@ func _update_prompt() -> void:
 			_nearest_structure = structure
 			break
 	if not _nearest_structure.is_empty():
-		hud.tick("E  Rest & care for companions" if _nearest_structure["recipe_id"] in ["hut","house","campfire","stable"] else "E  Inspect flight perch")
+		hud.tick("E  Care for sanctuary companions" if _nearest_structure["recipe_id"] == "creature_shelter" else "E  Rest & care for companions" if _nearest_structure["recipe_id"] in ["hut","house","campfire","stable"] else "E  Inspect flight perch")
 	else:
 		hud.tick("E  Search tall grass for wildlife" if can_search_wildlife() else "")
 
@@ -242,7 +263,11 @@ func gather_nearest() -> Dictionary:
 	return result
 
 func use_structure() -> void:
-	if _nearest_structure.get("recipe_id","") == "flight_perch":
+	if _nearest_structure.get("recipe_id","") == "creature_shelter":
+		var result: Dictionary = homestead.care_at_shelter(_nearest_structure.id, zone_id, player.global_position)
+		hud.toast(result.message)
+		if result.success: save_progress()
+	elif _nearest_structure.get("recipe_id","") == "flight_perch":
 		hud.toast("Bond with a Vulturon in the riverine woodland, craft a Flight Harness, then press F.",6)
 	elif _rest_cooldown <= 0:
 		PartyManager.heal_party()
@@ -455,3 +480,22 @@ func _polish_world() -> void:
 			material.albedo_color = Color("9c916e")
 			material.roughness = 1.0
 			child.material_override = material
+
+func get_nearby_resources(origin: Vector3, radius: float) -> Array:
+	var nearby: Array = []
+	for entry: Dictionary in resource_nodes:
+		if not homestead.is_node_collected(entry.id) and origin.distance_to(entry.position) <= radius:
+			nearby.append(entry)
+	return nearby
+
+func highlight_scanned_resources(entries: Array) -> void:
+	for entry: Dictionary in entries:
+		var beacon := Label3D.new()
+		beacon.text = str(entry.resource).capitalize()
+		beacon.position = entry.position + Vector3(0,2,0)
+		beacon.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		beacon.modulate = Color("9be4d5")
+		add_child(beacon)
+		var tween := beacon.create_tween()
+		tween.tween_interval(6.0)
+		tween.tween_callback(beacon.queue_free)

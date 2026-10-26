@@ -9,6 +9,9 @@ const DIRECTIONS := ["move_left", "move_right", "move_forward", "move_back"]
 var enabled: bool = false
 var mode: String = "auto"
 var joystick_deadzone: float = 0.12
+var button_size: float = 72.0
+var action_margin_x: float = 12.0
+var action_margin_y: float = 12.0
 var root: Control
 var joystick: Control
 var action_bar: GridContainer
@@ -48,6 +51,9 @@ func _ready() -> void:
 		mode = str(config.get_value("controls", "mode", "auto"))
 		if mode not in ["auto", "touch", "desktop"]: mode = "auto"
 		joystick_deadzone = clampf(float(config.get_value("controls", "joystick_deadzone", 0.12)), 0.05, 0.30)
+		button_size = clampf(float(config.get_value("controls", "button_size", 72.0)), 56.0, 96.0)
+		action_margin_x = clampf(float(config.get_value("controls", "action_margin_x", 12.0)), 0.0, 240.0)
+		action_margin_y = clampf(float(config.get_value("controls", "action_margin_y", 12.0)), 0.0, 200.0)
 	if _preview: mode = "touch"
 	_build_controls()
 	_build_rotation_notice()
@@ -88,6 +94,37 @@ func set_joystick_deadzone(value: float) -> void:
 	config.set_value("controls", "joystick_deadzone", joystick_deadzone)
 	var result := config.save(PREFERENCE_PATH)
 	if result != OK: push_warning("Could not save joystick preference: " + error_string(result))
+
+func set_button_size(value: float) -> void:
+	button_size = clampf(value, 56.0, 96.0)
+	_apply_button_styles()
+	_position_actions()
+	var config := ConfigFile.new()
+	config.load(PREFERENCE_PATH)
+	config.set_value("controls", "button_size", button_size)
+	var result := config.save(PREFERENCE_PATH)
+	if result != OK: push_warning("Could not save button size preference: " + error_string(result))
+	layout_changed.emit()
+
+func set_action_margin_x(value: float) -> void:
+	action_margin_x = clampf(value, 0.0, 240.0)
+	_position_actions()
+	var config := ConfigFile.new()
+	config.load(PREFERENCE_PATH)
+	config.set_value("controls", "action_margin_x", action_margin_x)
+	var result := config.save(PREFERENCE_PATH)
+	if result != OK: push_warning("Could not save button margin x preference: " + error_string(result))
+	layout_changed.emit()
+
+func set_action_margin_y(value: float) -> void:
+	action_margin_y = clampf(value, 0.0, 200.0)
+	_position_actions()
+	var config := ConfigFile.new()
+	config.load(PREFERENCE_PATH)
+	config.set_value("controls", "action_margin_y", action_margin_y)
+	var result := config.save(PREFERENCE_PATH)
+	if result != OK: push_warning("Could not save button margin y preference: " + error_string(result))
+	layout_changed.emit()
 
 func _apply_mode() -> void:
 	release_all()
@@ -131,24 +168,58 @@ func _build_controls() -> void:
 	action_bar.add_theme_constant_override("h_separation", 8)
 	action_bar.add_theme_constant_override("v_separation", 8)
 	root.add_child(action_bar)
-	for id: String in ["interact", "jump", "sprint", "ride", "fly", "descend", "rotate", "place", "cancel", "continue", "camera", "undo"]:
+	for id: String in ["interact", "jump", "sprint", "ride", "fly", "descend", "rotate", "place", "cancel", "continue", "camera", "undo", "ability"]:
 		var button: Button = TOUCH_BUTTON.new()
 		button.name = id.capitalize()
 		button.text = id.capitalize()
 		button.clip_text = true
-		button.custom_minimum_size = Vector2(108, 66)
-		button.add_theme_font_size_override("font_size", 20 if id == "ride" else 21 if id == "sprint" else 22)
-		for state: String in ["normal", "hover", "pressed", "disabled", "focus"]:
-			var style: StyleBoxFlat = root.theme.get_stylebox(state, "Button").duplicate()
-			style.content_margin_left = 10
-			style.content_margin_right = 10
-			style.content_margin_top = 10
-			style.content_margin_bottom = 10
-			button.add_theme_stylebox_override(state, style)
+		button.alignment = HORIZONTAL_ALIGNMENT_CENTER
 		button.held_changed.connect(func(held: bool): _button_changed(id, held))
 		button.visible = false
 		action_bar.add_child(button)
 		buttons[id] = button
+	_apply_button_styles()
+
+func _apply_button_styles() -> void:
+	if not is_instance_valid(action_bar): return
+	var radius := int(button_size / 2.0)
+	var font_sz := clampi(int(button_size * 0.22), 12, 22)
+	for id: String in buttons:
+		var button: Button = buttons[id]
+		if not is_instance_valid(button): continue
+		button.custom_minimum_size = Vector2(button_size, button_size)
+		button.size = Vector2(button_size, button_size)
+		button.alignment = HORIZONTAL_ALIGNMENT_CENTER
+		button.add_theme_font_size_override("font_size", font_sz)
+		
+		var normal_style := StyleBoxFlat.new()
+		normal_style.bg_color = Color(0.10, 0.20, 0.16, 0.88)
+		normal_style.border_color = Color(0.78, 0.70, 0.45, 0.85)
+		normal_style.set_border_width_all(2)
+		normal_style.set_corner_radius_all(radius)
+		normal_style.content_margin_left = 4
+		normal_style.content_margin_right = 4
+		normal_style.content_margin_top = 4
+		normal_style.content_margin_bottom = 4
+		button.add_theme_stylebox_override("normal", normal_style)
+		
+		var pressed_style := normal_style.duplicate() as StyleBoxFlat
+		pressed_style.bg_color = Color(0.85, 0.72, 0.35, 0.95)
+		pressed_style.border_color = Color(1.0, 0.96, 0.75, 1.0)
+		button.add_theme_stylebox_override("pressed", pressed_style)
+		
+		var hover_style := normal_style.duplicate() as StyleBoxFlat
+		hover_style.bg_color = Color(0.16, 0.30, 0.24, 0.92)
+		hover_style.border_color = Color(0.92, 0.82, 0.52, 0.95)
+		button.add_theme_stylebox_override("hover", hover_style)
+		
+		var disabled_style := normal_style.duplicate() as StyleBoxFlat
+		disabled_style.bg_color = Color(0.12, 0.14, 0.13, 0.45)
+		disabled_style.border_color = Color(0.35, 0.35, 0.35, 0.35)
+		button.add_theme_stylebox_override("disabled", disabled_style)
+		
+		var focus_style := normal_style.duplicate() as StyleBoxFlat
+		button.add_theme_stylebox_override("focus", focus_style)
 
 func _reflow() -> void:
 	if not is_instance_valid(root): return
@@ -207,7 +278,12 @@ func _update_orientation_gate() -> bool:
 func _position_actions() -> void:
 	if not is_instance_valid(action_bar): return
 	action_bar.size = action_bar.get_combined_minimum_size()
-	action_bar.position = safe_rect().end - action_bar.size - Vector2(4, 4)
+	var rect := safe_rect()
+	var pos_x := rect.end.x - action_bar.size.x - action_margin_x
+	var pos_y := rect.end.y - action_bar.size.y - action_margin_y
+	pos_x = clampf(pos_x, rect.position.x, rect.end.x - action_bar.size.x)
+	pos_y = clampf(pos_y, rect.position.y, rect.end.y - action_bar.size.y)
+	action_bar.position = Vector2(pos_x, pos_y)
 
 func _process(_delta: float) -> void:
 	if _update_orientation_gate() or _application_suspended:
@@ -263,12 +339,12 @@ func _set_context(next_context: String, exploration: Node) -> void:
 		buttons[id].disabled = false
 	var actions: Array[String] = []
 	if context == "explore":
-		actions = ["interact", "jump", "sprint"]
+		actions = ["interact", "jump", "sprint", "ability"]
 		if ride_ready: actions.append("ride")
 		if fly_ready: actions.append("fly")
 		if undo_ready: actions.append("undo")
 	elif context == "riding":
-		actions = ["interact", "jump", "ride", "sprint"]
+		actions = ["interact", "jump", "ride", "sprint", "ability"]
 		if fly_ready: actions.append("fly")
 	elif context == "flying":
 		actions = ["jump", "descend", "fly"]
@@ -302,6 +378,11 @@ func _steer(direction: Vector2) -> void:
 
 func _button_changed(id: String, held: bool) -> void:
 	if held and (not enabled or not root.visible or not buttons[id].visible or buttons[id].disabled): return
+	if id == "ability":
+		if held:
+			var exploration := _get_exploration()
+			if exploration != null: exploration.hud.open_abilities()
+		return
 	if id == "undo":
 		var exploration := _get_exploration()
 		if held and exploration != null and exploration.has_method("undo_last_build"):

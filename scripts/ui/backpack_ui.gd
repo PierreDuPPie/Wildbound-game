@@ -722,6 +722,10 @@ func _refresh_notes_tab() -> void:
 			body = "Prepare for what lies beyond the East Gate."
 		
 	notes_vbox.add_child(_make_note_card("🎯 CURRENT OBJECTIVE", body))
+	if prog != null and prog.has_method("get_field_notes"):
+		notes_vbox.add_child(_make_note_card("RATELIT", prog.get_relationship()))
+		for note: Dictionary in prog.get_field_notes():
+			notes_vbox.add_child(_make_note_card(note.title, note.text))
 
 func _text_card(title: String, text: String, height: float, font_size: int = 20) -> Panel:
 	var panel := _card_panel()

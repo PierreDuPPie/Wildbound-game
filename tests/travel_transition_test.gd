@@ -45,6 +45,10 @@ func _run() -> void:
 	bootstrap = BOOTSTRAP.instantiate()
 	add_child(bootstrap)
 	await frames(60)
+	# Route-boundary fixture, independent of the Chapter 1 Outpost arrival.
+	ProgressionManager.complete_milestone("chapter_nuisance_seen")
+	bootstrap._load_route_3d_immediate(Vector3.ZERO)
+	await frames(20)
 	if not check(player() != null and bootstrap.current_zone == "route_01_3d", "Actual Bootstrap starts Route 01 with a physics-grounded keeper"):
 		_finish()
 		return

@@ -421,6 +421,8 @@ func show_dialogue(speaker: String, text: String) -> void:
 		player.set("movement_enabled", false)
 
 func close_dialogue() -> void:
+	var chapter_layer = get_node_or_null("Exploration/Chapter")
+	if chapter_layer != null and chapter_layer.advance_dialogue(): return
 	if dialogue_panel:
 		dialogue_panel.visible = false
 	is_dialogue_active = false
@@ -558,6 +560,8 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 func _on_backpack_pressed() -> void:
+	var chapter_layer = get_node_or_null("Exploration/Chapter")
+	if chapter_layer != null and chapter_layer.is_sequence_active(): return
 	if is_dialogue_active: close_dialogue()
 	if system_menu_ui.visible: return
 	if backpack_ui.visible:
@@ -567,6 +571,8 @@ func _on_backpack_pressed() -> void:
 		backpack_ui.open()
 
 func _on_menu_pressed() -> void:
+	var chapter_layer = get_node_or_null("Exploration/Chapter")
+	if chapter_layer != null and chapter_layer.is_sequence_active(): return
 	if is_dialogue_active: close_dialogue()
 	if backpack_ui.visible: return
 	if player: player.movement_enabled = false

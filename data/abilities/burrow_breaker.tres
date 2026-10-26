@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="BurrowBreakerAbility" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/abilities/burrow_breaker_ability.gd" id="1_burrow"]
+
+[resource]
+script = ExtResource("1_burrow")
+ability_id = &"burrow_breaker"
+display_name = "Burrow Breaker"
+description = "Ratelit digs beneath obstructions and shatters cracked boulders."
+activation_type = &"target"
+cooldown = 2.0
+prompt_text = "Ratelit: Burrow Breaker"

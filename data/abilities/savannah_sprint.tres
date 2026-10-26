@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="SavannahSprintAbility" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/abilities/savannah_sprint_ability.gd" id="1_sprint"]
+
+[resource]
+script = ExtResource("1_sprint")
+ability_id = &"savannah_sprint"
+display_name = "Savannah Sprint"
+description = "Cheetan unleashes predatory speed, surging forward to leap ravines."
+activation_type = &"movement_surge"
+cooldown = 6.0
+prompt_text = "Cheetan: Savannah Sprint"
+speed_multiplier = 1.8
+duration = 4.0

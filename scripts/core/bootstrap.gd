@@ -36,7 +36,7 @@ var is_transitioning: bool = false
 
 
 func _ready() -> void:
-	get_window().title = "WILDBOUND — Homestead & Friends"
+	get_window().title = "WILDBOUND — First Expedition Alpha"
 	_configure_inputs()
 	MobileControls.bind_bootstrap(self)
 	_setup_overlay()
@@ -148,16 +148,16 @@ func _new_game(explicit_request: bool = true) -> void:
 	var prog = get_node_or_null("/root/ProgressionManager")
 	if prog != null:
 		prog.reset()
-	return_position = Vector3(5, 0, 5)
+	return_position = Vector3(-15, 0, 4)
 	return_rotation_y = 0.0
-	current_zone = "route_01_3d"
+	current_zone = "sanctuary_town"
 	PartyManager.current_zone = current_zone
 	demo_completed = false
 	bonded_this_run = false
 	SaveManager.save_game(PartyManager.to_save_dict(), current_zone, return_position, return_rotation_y, demo_completed)
 	
 	transition_rect.color.a = 1.0
-	_load_route_3d_immediate(return_position)
+	_load_town_immediate(return_position)
 	var tween := create_tween()
 	tween.tween_property(transition_rect, "color:a", 0.0, 0.8)
 
@@ -338,7 +338,7 @@ func _on_battle_closed(reason: StringName) -> void:
 		return_position = SPAWN_POINTS.get(current_zone, Vector3(5, 0, 5))
 	elif reason == &"bonded":
 		var prog = get_node_or_null("/root/ProgressionManager")
-		if not last_encountered_spawn_id.is_empty() and prog != null:
+		if prog != null:
 			prog.record_wildbond(last_encountered_spawn_id)
 
 	last_encountered_spawn_id = ""

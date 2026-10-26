@@ -1,0 +1,270 @@
+{
+  "title": "Chapter 1 — Something in the Wild",
+  "target_minutes": [
+    30,
+    45
+  ],
+  "stages": {
+    "arrival": {
+      "title": "The Arrival",
+      "objective": "Speak to Ranger Dan by the west road at Acacia Outpost.",
+      "zone": "sanctuary_town",
+      "position": [
+        -11,
+        0,
+        4
+      ],
+      "target": "ranger"
+    },
+    "first_bond": {
+      "title": "Your First Wildbond",
+      "objective": "Take the west road to Route 01. Approach wildlife or search tall grass. In battle, weaken it, then choose Wildbond.",
+      "zone": "route_01_3d",
+      "position": [
+        8,
+        0,
+        5
+      ],
+      "target": "wildlife"
+    },
+    "injury": {
+      "title": "The Disturbance",
+      "objective": "Take the east road through Acacia Outpost to Riverine Woodland. Help the injured Pangolet beside the bridge.",
+      "zone": "route_02_3d",
+      "position": [
+        -10,
+        0,
+        6
+      ],
+      "target": "injury"
+    },
+    "tracks": {
+      "title": "Strange Tracks",
+      "objective": "Inspect the tracks on the east bank, across the bridge.",
+      "zone": "route_02_3d",
+      "position": [
+        10,
+        0,
+        6
+      ],
+      "target": "tracks"
+    },
+    "passage": {
+      "title": "The First Expedition",
+      "objective": "Follow the east bank north to the rockfall. Use Ratelit's Burrow Breaker nearby with G / Abilities.",
+      "zone": "route_02_3d",
+      "position": [
+        18,
+        0,
+        -9
+      ],
+      "target": "rockfall"
+    },
+    "evidence": {
+      "title": "The Damaged Shelter",
+      "objective": "Inspect the damaged shelter beyond the cleared rockfall.",
+      "zone": "route_02_3d",
+      "position": [
+        18,
+        0,
+        -14
+      ],
+      "target": "evidence"
+    },
+    "report": {
+      "title": "A Place to Recover",
+      "objective": "Return west to Ranger Dan at Acacia Outpost and report your findings.",
+      "zone": "sanctuary_town",
+      "position": [
+        -11,
+        0,
+        4
+      ],
+      "target": "ranger"
+    },
+    "shelter": {
+      "title": "Building Your Sanctuary",
+      "objective": "Gather 6 wood, 2 stone and 4 fiber. At Acacia Outpost, open Camp and place a Creature Shelter on clear ground.",
+      "zone": "sanctuary_town",
+      "position": [
+        -12,
+        0,
+        12
+      ],
+      "target": "homestead"
+    },
+    "care": {
+      "title": "A Keeper's Promise",
+      "objective": "Approach your Creature Shelter at Acacia Outpost and interact to care for your companions.",
+      "zone": "sanctuary_town",
+      "position": [
+        -12,
+        0,
+        12
+      ],
+      "target": "shelter"
+    },
+    "mystery": {
+      "title": "Something in the Wild",
+      "objective": "Inspect the resonance stone beside your shelter. Ratelit is waiting.",
+      "zone": "sanctuary_town",
+      "position": [
+        -12,
+        0,
+        12
+      ],
+      "target": "resonance"
+    },
+    "complete": {
+      "title": "Chapter 1 Complete",
+      "objective": "Something in the Wild — complete. Your sanctuary remains open. Check Field Notes, explore, or save and rest.",
+      "zone": "sanctuary_town",
+      "position": [
+        -11,
+        0,
+        4
+      ],
+      "target": "ranger"
+    }
+  },
+  "dialogue": {
+    "arrival": [
+      [
+        "Ranger Dan",
+        "Welcome to Acacia Outpost, Wildkeeper. I'm Dan. The Resonance Band on your wrist helps you listen to creatures — but trust has to be earned."
+      ],
+      [
+        "Ranger Dan",
+        "Pangolet will travel with you. Move with WASD, run with Shift and jump with Space. On a phone, use the pad and action buttons. Interact with people and supplies using E or Interact."
+      ],
+      [
+        "Ranger Dan",
+        "First, take the west road to Route 01. Meet a wild creature. In battle, choose a move, watch its vitality, then try Wildbond. If it refuses, keep trying gently. Sanna's clinic here can restore your party."
+      ],
+      [
+        "Ranger Dan",
+        "We've had reports of unusual animal activity near the Riverine Woodland, beyond our east gate. Once you've formed a bond, investigate. Your next task and its direction are always in Field Notes and the mission panel."
+      ]
+    ],
+    "nuisance": [
+      [
+        "Field Notes",
+        "A honey badger barrels out of the grass with somebody's lunch. A furious bird follows. The badger stops to argue with a rock."
+      ],
+      [
+        "Ranger Dan",
+        "That one is Ratelit. He isn't assigned to anybody. He just keeps turning up. Keep an eye on him — preferably from a safe distance."
+      ]
+    ],
+    "injury": [
+      [
+        "Field Notes",
+        "A young Pangolet is curled beside the riverbank. There is no wound from teeth or claws. Its scales tremble when your Resonance Band hums."
+      ],
+      [
+        "Wildkeeper",
+        "Easy. I'm here to help. A little water, a cool leaf and a quiet place. We won't force you to move."
+      ],
+      [
+        "Field Notes",
+        "Its breathing settles. Nearby wildlife has fled away from the east bank, leaving scorched grass and deep, uneven tracks."
+      ],
+      [
+        "Field Notes",
+        "Ratelit noses your pack, steals the spare food and stays beside the Pangolet. He will help investigate even if you haven't bonded with him."
+      ]
+    ],
+    "tracks": [
+      [
+        "Field Notes",
+        "Three trails meet here. One runs toward the river. Another doubles back in panic. The third cuts straight toward an old shelter to the north."
+      ],
+      [
+        "Field Notes",
+        "The soil is warm, but there is no fire. Your Band gives a single sharp pulse. Follow the east bank north to the cracked rockfall."
+      ],
+      [
+        "Wildkeeper",
+        "Whatever frightened them didn't chase them. It passed through them."
+      ]
+    ],
+    "evidence": [
+      [
+        "Field Notes",
+        "Inside the damaged shelter, claw marks stop at a smooth black stone. The roof has collapsed outward. Not a single splinter is burned."
+      ],
+      [
+        "Field Notes",
+        "You record the shelter's position and a sketch of the stone. The Band's hum rises until Ratelit puts a muddy paw on your wrist. Silence."
+      ],
+      [
+        "Wildkeeper",
+        "We need a safe place for that Pangolet. I'll tell Dan what we found."
+      ]
+    ],
+    "report": [
+      [
+        "Ranger Dan",
+        "You did the right thing helping it first. We can study the disturbance once the creatures are safe."
+      ],
+      [
+        "Ranger Dan",
+        "Gather 6 wood, 2 stone and 4 fiber from the marked supplies. They regrow, so you can never run out. Come back here and use Camp to place a Creature Shelter on a clear patch."
+      ],
+      [
+        "Ranger Dan",
+        "Then interact beside the shelter to care for your companions. Any shelter you've already built here will do. This is your sanctuary now — the creatures are neighbours, not trophies."
+      ]
+    ],
+    "resonance": [
+      [
+        "Field Notes",
+        "The shelter falls quiet. Pangolet curls tightly. Even the birds stop calling. A blue shimmer gathers around a stone beneath the new roof."
+      ],
+      [
+        "Field Notes",
+        "Your Resonance Band flashes. The Wild Current feels like a storm caught under your skin. Ratelit walks straight toward it."
+      ],
+      [
+        "Ranger Dan",
+        "That's impossible. No creature should be able to withstand that."
+      ],
+      [
+        "Field Notes",
+        "Ratelit's eyes glow. For a moment, the shimmer bends toward him. He scratches his ear. Then bites the stone."
+      ],
+      [
+        "Wildkeeper",
+        "Ratelit. That is absolutely not food."
+      ],
+      [
+        "Field Notes",
+        "The pulse breaks. The creatures settle. Ratelit leans against your boot as if nothing happened."
+      ],
+      [
+        "Ranger Dan",
+        "I've seen resonance storms before. I've never seen one answer a creature. We'll find out what this means. Together."
+      ],
+      [
+        "Chapter 1 — Something in the Wild",
+        "Your first expedition is complete. Your sanctuary and companions remain yours. The mystery of Ratelit and the Wild Current has only begun. Save in the menu before leaving."
+      ]
+    ],
+    "complete": [
+      [
+        "Ranger Dan",
+        "The Pangolet is safe. Your shelter is ready. And Ratelit has adopted your boots. Rest, explore, and record what you find. The Wild Current can wait until morning."
+      ]
+    ]
+  },
+  "notes": {
+    "arrival": "Dan asked us to investigate unusual animal activity near Riverine Woodland. Pangolet is our first companion.",
+    "first_bond": "A first Wildbond formed. Ratelit appeared with stolen food; he seems determined to follow.",
+    "injured_helped": "Helped an injured Pangolet without forcing a bond. Ratelit stayed to investigate.",
+    "tracks": "Warm ground, fleeing wildlife and strange tracks lead north along the east bank.",
+    "evidence": "A collapsed shelter and a smooth black stone. The Band fell silent when Ratelit touched it.",
+    "report": "Dan asked us to build a sanctuary shelter: 6 wood, 2 stone, 4 fiber.",
+    "shelter_cared": "The sanctuary shelter now gives our companions a safe place to rest and recover.",
+    "resonance": "Ratelit withstood the Wild Current, then bit the stone. Dan has no explanation."
+  }
+}

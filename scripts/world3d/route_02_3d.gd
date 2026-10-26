@@ -536,6 +536,8 @@ func _show_dialogue(text: String) -> void:
 	show_dialogue("Field Notes", text)
 
 func close_dialogue() -> void:
+	var chapter_layer = get_node_or_null("Exploration/Chapter")
+	if chapter_layer != null and chapter_layer.advance_dialogue(): return
 	if dialogue_panel:
 		dialogue_panel.visible = false
 	is_dialogue_active = false
@@ -664,6 +666,8 @@ func _build_hud() -> void:
 	hud.add_child(system_menu_ui)
 
 func toggle_backpack() -> void:
+	var chapter_layer = get_node_or_null("Exploration/Chapter")
+	if chapter_layer != null and chapter_layer.is_sequence_active(): return
 	if is_dialogue_active: close_dialogue()
 	if system_menu_ui.visible: return
 	if backpack_ui.visible:
@@ -673,6 +677,8 @@ func toggle_backpack() -> void:
 		backpack_ui.open()
 
 func toggle_system_menu() -> void:
+	var chapter_layer = get_node_or_null("Exploration/Chapter")
+	if chapter_layer != null and chapter_layer.is_sequence_active(): return
 	if is_dialogue_active: close_dialogue()
 	if backpack_ui.visible: return
 	if system_menu_ui.visible:

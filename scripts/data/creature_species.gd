@@ -12,6 +12,7 @@ extends Resource
 @export var animal_inspiration: String
 @export var habitat_tags: Array[StringName] = []
 @export var temperament_tags: Array[StringName] = []
+@export var exploration_ability: Resource # ExplorationAbility
 
 @export_group("Combat Identity")
 @export var aspects: Array[AspectData] = []

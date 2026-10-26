@@ -19,6 +19,9 @@ var _touch_buttons: Array[Button] = []
 var _quit_button: Button
 var _settings_scroll: ScrollContainer
 var _deadzone_slider: HSlider
+var _button_size_slider: HSlider
+var _margin_x_slider: HSlider
+var _margin_y_slider: HSlider
 var _smoothing_slider: HSlider
 var _quality_picker: OptionButton
 
@@ -177,6 +180,15 @@ func _build_ui() -> void:
 	_deadzone_slider = _setting_slider(body, "JOYSTICK DEAD ZONE", 0.05, 0.30, 0.01, func(value: float) -> void:
 		MobileControls.set_joystick_deadzone(value)
 	)
+	_button_size_slider = _setting_slider(body, "BUTTON SIZE (DIAMETER)", 56.0, 96.0, 2.0, func(value: float) -> void:
+		MobileControls.set_button_size(value)
+	)
+	_margin_x_slider = _setting_slider(body, "BUTTON HORIZONTAL OFFSET", 0.0, 240.0, 2.0, func(value: float) -> void:
+		MobileControls.set_action_margin_x(value)
+	)
+	_margin_y_slider = _setting_slider(body, "BUTTON VERTICAL OFFSET", 0.0, 200.0, 2.0, func(value: float) -> void:
+		MobileControls.set_action_margin_y(value)
+	)
 	var settings := get_node_or_null("/root/MobileSettings")
 	if settings != null:
 		_smoothing_slider = _setting_slider(body, "CAMERA FOLLOW SPEED", 3.0, 12.0, 0.5, func(value: float) -> void:
@@ -263,6 +275,12 @@ func _apply_layout() -> void:
 
 	if _deadzone_slider != null:
 		_deadzone_slider.set_value_no_signal(MobileControls.joystick_deadzone)
+	if _button_size_slider != null:
+		_button_size_slider.set_value_no_signal(MobileControls.button_size)
+	if _margin_x_slider != null:
+		_margin_x_slider.set_value_no_signal(MobileControls.action_margin_x)
+	if _margin_y_slider != null:
+		_margin_y_slider.set_value_no_signal(MobileControls.action_margin_y)
 	var settings := get_node_or_null("/root/MobileSettings")
 	if settings != null and _smoothing_slider != null:
 		_smoothing_slider.set_value_no_signal(settings.follow_smoothing)

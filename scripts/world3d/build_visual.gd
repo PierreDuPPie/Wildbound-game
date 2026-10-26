@@ -9,6 +9,7 @@ static func create(recipe_id: String, ghost: bool = false) -> Node3D:
 	root.set_meta("ghost", ghost)
 	var palette: Dictionary = _palette()
 	match recipe_id:
+		"creature_shelter": _shelter(root, palette, ghost)
 		"hut": _home(root, palette, Vector3(3.5, 2.35, 3.2), false, ghost)
 		"house": _home(root, palette, Vector3(5.3, 2.65, 4.3), true, ghost)
 		"stable": _stable(root, palette, ghost)
@@ -243,6 +244,24 @@ static func _stable(root: Node3D, p: Dictionary, ghost: bool) -> void:
 	_lantern(root, p, Vector3(-2.15, 1.7, -d * 0.5 - 0.14), ghost)
 	_marker(root, "Entrance", Vector3(0, 0, -d * 0.5 - 0.9))
 	_marker(root, "MountPoint", Vector3(0, 0, 0))
+
+static func _shelter(root: Node3D, p: Dictionary, ghost: bool) -> void:
+	# Open frontage and low side rails keep companions visible and the care
+	# point reachable. The back and posts have real collision in placed builds.
+	_box(root, "ShelterBedding", Vector3(3.8, 0.06, 3.0), Vector3(0, 0.02, 0), p["thatch"])
+	_box(root, "ShelterBack", Vector3(4.0, 1.35, 0.14), Vector3(0, 0.675, 1.55), p["timber"], not ghost)
+	for side: float in [-1.0, 1.0]:
+		for z: float in [-1.5, 1.5]:
+			_box(root, "ShelterPost", Vector3(0.18, 2.2, 0.18), Vector3(side * 2.0, 1.1, z), p["dark"], not ghost)
+		_box(root, "ShelterRail", Vector3(0.12, 0.12, 3.0), Vector3(side * 2.0, 0.6, 0), p["timber"])
+		_box(root, "SleepingMat", Vector3(0.9, 0.12, 1.15), Vector3(side * 1.1, 0.12, 0.6), p["canvas"])
+	_roof(root, p, 4.4, 3.45, 2.2, 0.6, false, ghost)
+	_cylinder(root, "ShelterWaterBowl", 0.32, 0.26, 0.22, Vector3(1.4, 0.14, -1.1), p["clay"])
+	_cylinder(root, "FreshWater", 0.27, 0.27, 0.025, Vector3(1.4, 0.26, -1.1), p["glass"])
+	_box(root, "ShelterSign", Vector3(1.15, 0.35, 0.08), Vector3(0, 1.9, -1.55), p["roof"])
+	_lantern(root, p, Vector3(-1.8, 1.5, -1.65), ghost)
+	_marker(root, "Entrance", Vector3(0, 0, -2.1))
+	_marker(root, "CarePoint", Vector3(0, 0, -2.1))
 
 static func _perch(root: Node3D, p: Dictionary, ghost: bool) -> void:
 	for x: float in [-1.05, 1.05]:

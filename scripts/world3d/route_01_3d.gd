@@ -780,6 +780,8 @@ func show_dialogue(speaker: String, text: String) -> void:
 
 
 func close_dialogue() -> void:
+	var chapter_layer = get_node_or_null("Exploration/Chapter")
+	if chapter_layer != null and chapter_layer.advance_dialogue(): return
 	if dialogue_panel:
 		dialogue_panel.visible = false
 	is_dialogue_active = false
@@ -800,6 +802,8 @@ func _on_npc_interacted(npc_id: StringName) -> void:
 
 
 func toggle_backpack() -> void:
+	var chapter_layer = get_node_or_null("Exploration/Chapter")
+	if chapter_layer != null and chapter_layer.is_sequence_active(): return
 	if is_dialogue_active:
 		close_dialogue()
 	if backpack_ui == null:
@@ -814,6 +818,8 @@ func toggle_backpack() -> void:
 		backpack_ui.call("open")
 
 func toggle_system_menu() -> void:
+	var chapter_layer = get_node_or_null("Exploration/Chapter")
+	if chapter_layer != null and chapter_layer.is_sequence_active(): return
 	if is_dialogue_active:
 		close_dialogue()
 	if system_menu_ui == null:

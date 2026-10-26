@@ -117,6 +117,8 @@ func _read_valid_save(path: String) -> Dictionary:
 			return {}
 	if not data.get("player_position", {}) is Dictionary or not data.get("inventory", {}) is Dictionary:
 		return {}
+	if not preload("res://scripts/core/progression_manager.gd").validate_save_data(data.get("progression",{})):
+		return {}
 	var construction: Variant = data.get("homestead", {})
 	if not construction is Dictionary:
 		return {}

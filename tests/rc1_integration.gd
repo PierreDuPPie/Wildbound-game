@@ -45,6 +45,11 @@ func _run() -> void:
 	get_tree().quit(0 if failed == 0 else 1)
 
 func _exercise() -> void:
+	# Quality grass and outside-Outpost storage guards are Route 01 fixtures;
+	# the chapter's new-game arrival now correctly starts in Acacia Outpost.
+	ProgressionManager.complete_milestone("chapter_nuisance_seen")
+	boot._load_route_3d_immediate(Vector3.ZERO)
+	await frames(8)
 	var original_fps := Engine.max_fps
 	var lights: Array = boot.active_scene.find_children("*", "DirectionalLight3D", true, false)
 	check(not lights.is_empty(), "Real world has a directional light")

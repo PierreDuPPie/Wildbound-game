@@ -18,6 +18,10 @@ func frames(count: int = 2) -> void:
 
 func _run() -> void:
 	await frames(20)
+	# Grass-search coverage belongs to Route 01, not the new Outpost arrival.
+	ProgressionManager.complete_milestone("chapter_nuisance_seen")
+	bootstrap._load_route_3d_immediate(Vector3.ZERO)
+	await frames(20)
 	await _world_case(bootstrap.active_scene)
 	await _search_case()
 	bootstrap._load_route_02()

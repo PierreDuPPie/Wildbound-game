@@ -49,6 +49,11 @@ func _run() -> void:
 	bootstrap = BOOTSTRAP.instantiate()
 	add_child(bootstrap)
 	await frames(20)
+	# Chapter 1 intentionally starts in Acacia Outpost. This older mechanics
+	# acceptance fixture exercises Route 01 gathering/building specifically.
+	ProgressionManager.complete_milestone("chapter_nuisance_seen")
+	bootstrap._load_route_3d_immediate(Vector3.ZERO)
+	await frames(20)
 	_refresh_world()
 	if not check(is_instance_valid(exploration) and bootstrap.current_zone == "route_01_3d", "Actual bootstrap creates Route 01 exploration and HUD"):
 		_finish()
