@@ -43,6 +43,7 @@ var aspect_instinct_label: Label
 var stats_vbox: VBoxContainer
 var instinct_desc_label: Label
 var set_lead_btn: Button
+var rename_btn: Button
 var moves_btn: Button
 var _tabs: GridContainer
 var _party_details: GridContainer
@@ -66,6 +67,17 @@ var _party_extra: Label
 var _party_heading: Label
 var _transfer_busy := false
 
+# Rename Modal Nodes (WB-108)
+var rename_modal: Panel
+var _rename_blocker: ColorRect
+var _rename_title: Label
+var _rename_species_label: Label
+var rename_input: LineEdit
+var rename_save_btn: Button
+var rename_reset_btn: Button
+var rename_cancel_btn: Button
+var _rename_target: CreatureInstance = null
+
 var _layout_width: float = 840.0
 var _layout_portrait: bool = false
 
@@ -75,6 +87,7 @@ var reserve_grid: GridContainer
 var reserve_preview_label: Label
 var swap_reserve_btn: Button
 var favorite_btn: Button
+var reserve_rename_btn: Button
 var swap_warning_label: Label
 
 func _ready() -> void:
@@ -107,6 +120,8 @@ func open_reserve() -> void:
 	MobileControls.suspend_gameplay()
 
 func close() -> void:
+	if rename_modal != null:
+		rename_modal.hide()
 	visible = false
 	closed.emit()
 	MobileControls.refresh_context()
@@ -114,7 +129,9 @@ func close() -> void:
 func handle_back() -> bool:
 	if not visible:
 		return false
-	if item_use_modal.visible:
+	if rename_modal != null and rename_modal.visible:
+		rename_modal.hide()
+	elif item_use_modal.visible:
 		item_use_modal.hide()
 	elif reserve_swap_modal.visible:
 		reserve_swap_modal.hide()
@@ -130,6 +147,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		var key: Key = event.keycode
+		if rename_modal != null and rename_modal.visible:
+			if key == KEY_ESCAPE:
+				rename_modal.hide()
+				get_viewport().set_input_as_handled()
+			return
 		if key == KEY_Q or key == KEY_B or key == KEY_ESCAPE:
 			handle_back()
 			get_viewport().set_input_as_handled()
@@ -152,6 +174,8 @@ func _set_tab(tab_name: StringName) -> void:
 		item_use_modal.visible = false
 	if reserve_swap_modal != null:
 		reserve_swap_modal.visible = false
+	if rename_modal != null:
+		rename_modal.visible = false
 
 	_style_tab_button(tab_party_btn, current_tab == &"party")
 	_style_tab_button(tab_reserve_btn, current_tab == &"reserve")
@@ -249,6 +273,7 @@ func _build_ui() -> void:
 	_build_reserve_tab(_content_area)
 	_build_gear_tab(_content_area)
 	_build_notes_tab(_content_area)
+	_build_rename_modal()
 
 func _make_tab_btn(title: String) -> Button:
 	return _touch_button(title, func() -> void: pass)
@@ -287,7 +312,7 @@ func _build_party_tab(parent: Control) -> void:
 	_party_details.add_theme_constant_override("v_separation", 14)
 	body.add_child(_party_details)
 	_party_card = _card_panel()
-	_party_card.custom_minimum_size.y = 394
+	_party_card.custom_minimum_size.y = 470
 	_party_details.add_child(_party_card)
 	var frame := Panel.new()
 	frame.name = "PortraitFrame"
@@ -318,6 +343,11 @@ func _build_party_tab(parent: Control) -> void:
 	)
 	set_lead_btn.position = Vector2(16, 314)
 	_party_card.add_child(set_lead_btn)
+	rename_btn = _touch_button("RENAME COMPANION", func() -> void:
+		if selected_party_index >= 0 and selected_party_index < PartyManager.party.size():
+			open_rename_modal(PartyManager.party[selected_party_index])
+	)
+	_party_card.add_child(rename_btn)
 	_party_favorite = _touch_button("FAVORITE", func() -> void:
 		PartyManager.toggle_favorite(PartyManager.party[selected_party_index])
 		progress_changed.emit()
@@ -384,6 +414,11 @@ func _build_reserve_tab(parent: Control) -> void:
 	)
 	favorite_btn.position = Vector2(16, 170)
 	_reserve_preview.add_child(favorite_btn)
+	reserve_rename_btn = _touch_button("RENAME", func() -> void:
+		if selected_reserve_index >= 0 and selected_reserve_index < PartyManager.reserve_storage.size():
+			open_rename_modal(PartyManager.reserve_storage[selected_reserve_index])
+	)
+	_reserve_preview.add_child(reserve_rename_btn)
 	swap_reserve_btn = _touch_button("SWAP INTO PARTY", _on_swap_reserve_pressed)
 	_reserve_preview.add_child(swap_reserve_btn)
 	action_feedback_label = _label("", 20, Color(0.5, 1.0, 0.5))
@@ -416,6 +451,62 @@ func _build_swap_modal() -> void:
 	_swap_cancel = _touch_button("CANCEL SWAP", func() -> void: reserve_swap_modal.visible = false)
 	reserve_swap_modal.add_child(_swap_cancel)
 	_content_area.resized.connect(_layout_modals)
+
+func _build_rename_modal() -> void:
+	_rename_blocker = _modal_blocker()
+	rename_modal = _card_panel()
+	rename_modal.visible = false
+	_content_area.add_child(rename_modal)
+	rename_modal.visibility_changed.connect(func() -> void: _rename_blocker.visible = rename_modal.visible)
+	_rename_title = _label("Give your companion a nickname:", 22, ACCENT_GOLD)
+	rename_modal.add_child(_rename_title)
+	_rename_species_label = _label("", 18, TEXT_MUTED)
+	rename_modal.add_child(_rename_species_label)
+	rename_input = LineEdit.new()
+	rename_input.max_length = CreatureInstance.MAX_NICKNAME_LENGTH
+	rename_input.placeholder_text = "Enter nickname (up to 18 chars)"
+	rename_input.custom_minimum_size = Vector2(0, 56)
+	rename_input.add_theme_font_size_override("font_size", 20)
+	rename_input.text_submitted.connect(func(_submitted_text: String) -> void: _confirm_rename())
+	rename_modal.add_child(rename_input)
+	rename_save_btn = _touch_button("SAVE NAME", _confirm_rename)
+	rename_modal.add_child(rename_save_btn)
+	rename_reset_btn = _touch_button("RESET DEFAULT", _reset_rename)
+	rename_modal.add_child(rename_reset_btn)
+	rename_cancel_btn = _touch_button("CANCEL", func() -> void: rename_modal.visible = false)
+	rename_modal.add_child(rename_cancel_btn)
+
+func open_rename_modal(creature: CreatureInstance) -> void:
+	if creature == null or rename_modal == null:
+		return
+	_rename_target = creature
+	var species_name := creature.species.display_name if creature.species != null else "Unknown"
+	_rename_title.text = "Rename %s" % creature.display_name()
+	_rename_species_label.text = "Species: %s · Leave blank or press Reset Default to use species name." % species_name
+	rename_input.text = creature.nickname
+	rename_modal.visible = true
+	_layout_modals()
+	rename_input.grab_focus()
+	rename_input.caret_column = rename_input.text.length()
+
+func _confirm_rename() -> void:
+	if _rename_target == null:
+		rename_modal.visible = false
+		return
+	_rename_target.set_nickname(rename_input.text)
+	rename_modal.visible = false
+	progress_changed.emit()
+	_refresh_all()
+
+func _reset_rename() -> void:
+	if _rename_target == null:
+		rename_modal.visible = false
+		return
+	_rename_target.set_nickname("")
+	rename_input.text = ""
+	rename_modal.visible = false
+	progress_changed.emit()
+	_refresh_all()
 
 func _show_action_feedback(msg: String) -> void:
 	action_feedback_label.text = msg
@@ -561,7 +652,7 @@ func _open_item_use_modal(item: ItemData) -> void:
 	for child in item_use_modal_vbox.get_children():
 		child.queue_free()
 
-	item_use_title_label.text = "🧪 Use %s on:" % item.display_name
+	item_use_title_label.text = "[ITEM] Use %s on:" % item.display_name
 
 	if PartyManager.party.is_empty():
 		var empty_lbl = Label.new()
@@ -606,15 +697,15 @@ func _open_item_use_modal(item: ItemData) -> void:
 func _get_item_category_icon(category: int) -> String:
 	match category:
 		ItemData.ItemCategory.HEALING:
-			return "🌿"
+			return "[HEAL]"
 		ItemData.ItemCategory.STATUS:
-			return "💧"
+			return "[CURE]"
 		ItemData.ItemCategory.BUFF:
-			return "💎"
+			return "[BUFF]"
 		ItemData.ItemCategory.KEY:
-			return "🔑"
+			return "[KEY]"
 		_:
-			return "📦"
+			return "[ITEM]"
 
 func _refresh_gear_tab() -> void:
 	if key_gear_container == null or inventory_grid == null:
@@ -633,9 +724,9 @@ func _refresh_gear_tab() -> void:
 			discovered[c.species.species_id] = true
 	var species_count: int = maxi(1, discovered.size())
 
-	key_gear_container.add_child(_make_key_gear_card("📡 RESONANCE BAND", "Wildbond Transceiver Enabled\nCalibration: Stable (440Hz)\nStatus: Active Field Sync"))
-	key_gear_container.add_child(_make_key_gear_card("📖 ATLAS JOURNAL", "Wildkeeper Field Compendium\n%d Species Registered\nHabitat Logs Syncing..." % species_count))
-	key_gear_container.add_child(_make_key_gear_card("🪪 RANGER PASS", "Clearance: Kijani Reach\nIssued by: Acacia Outpost\nStatus: Valid Scout Permit"))
+	key_gear_container.add_child(_make_key_gear_card("[BAND] RESONANCE BAND", "Wildbond Transceiver Enabled\nCalibration: Stable (440Hz)\nStatus: Active Field Sync"))
+	key_gear_container.add_child(_make_key_gear_card("[ATLAS] ATLAS JOURNAL", "Wildkeeper Field Compendium\n%d Species Registered\nHabitat Logs Syncing..." % species_count))
+	key_gear_container.add_child(_make_key_gear_card("[PASS] RANGER PASS", "Clearance: Kijani Reach\nIssued by: Acacia Outpost\nStatus: Valid Scout Permit"))
 
 	# 2. Refresh Inventory Items
 	for child in inventory_grid.get_children():
@@ -721,7 +812,7 @@ func _refresh_notes_tab() -> void:
 		else:
 			body = "Prepare for what lies beyond the East Gate."
 		
-	notes_vbox.add_child(_make_note_card("🎯 CURRENT OBJECTIVE", body))
+	notes_vbox.add_child(_make_note_card("◆ CURRENT OBJECTIVE", body))
 	if prog != null and prog.has_method("get_field_notes"):
 		notes_vbox.add_child(_make_note_card("RATELIT", prog.get_relationship()))
 		for note: Dictionary in prog.get_field_notes():
@@ -756,6 +847,29 @@ func _refresh_all() -> void:
 	_refresh_reserve_tab()
 	_refresh_gear_tab()
 	_refresh_notes_tab()
+
+func _format_instinct_trigger(inst: InstinctData) -> String:
+	if inst == null:
+		return ""
+	match inst.condition_stat:
+		&"vitality":
+			return "Below %d%% HP" % int(round(inst.condition_below_percent * 100.0))
+		&"vitality_full":
+			return "At 100% HP"
+		&"hp_under_40":
+			return "Below 40% HP"
+		&"enemy_hp_under_50":
+			return "Opponent below 50% HP"
+		&"enemy_debuffed":
+			return "Opponent has a stat debuff or status"
+		&"allies_alive":
+			return "Active per conscious ally in party"
+		&"none":
+			return "Opening turn" if inst.once_per_battle else "Passive / Once per battle"
+		_:
+			if inst.condition_below_percent > 0.0:
+				return "Below %d%% HP" % int(round(inst.condition_below_percent * 100.0))
+			return "Automatic in battle"
 
 func _refresh_party_tab() -> void:
 	for child in party_list_vbox.get_children():
@@ -839,12 +953,22 @@ func _refresh_party_tab() -> void:
 	_party_store.text = "MOVE TO RESERVE" if PartyManager.can_swap_in_current_location() else "RESERVE AT OUTPOST"
 	var moves: PackedStringArray = []
 	for move in sel.learned_moves:
-		moves.append("%s · %s" % [move.display_name, move.description])
-	_party_extra.text = "BONDED: %s\n%s\n\nMOVES\n%s" % [sel.bond_location, "Wildbond companion" if sel.was_wildbonded else "Starter companion", "\n".join(moves)]
+		if move != null:
+			moves.append("• " + move.get_full_description())
+	var ability_block := ""
+	if sel.species != null and sel.species.exploration_ability != null:
+		var ab: ExplorationAbility = sel.species.exploration_ability
+		ability_block = "\n\nFIELD ABILITY: %s\n%s" % [ab.display_name.to_upper(), ab.description]
+	_party_extra.text = "BONDED: %s\n%s%s\n\nMOVES\n%s" % [
+		sel.bond_location,
+		"Wildbond companion" if sel.was_wildbonded else "Starter companion",
+		ability_block,
+		"\n".join(moves)
+	]
 	_update_party_visibility()
 
 	var lead_marker: String = " ★ [LEAD]" if selected_party_index == 0 else ""
-	detail_header_label.text = "%s Lv.%d%s" % [sel.display_name(), sel.level, lead_marker]
+	detail_header_label.text = "%s Lv.%d%s" % [sel.display_name_with_species(), sel.level, lead_marker]
 
 	var aspect_name: String = sel.species.aspects[0].display_name if sel.species.aspects.size() > 0 else "None"
 	var inst_name: String = sel.species.instinct.display_name if sel.species.instinct != null else "None"
@@ -863,10 +987,10 @@ func _refresh_party_tab() -> void:
 	# Instinct Box
 	if sel.species.instinct != null:
 		var inst = sel.species.instinct
-		instinct_desc_label.text = "INSTINCT: %s\n%s\nTrigger: Below %d%% HP -> Boost Active" % [
+		instinct_desc_label.text = "INSTINCT: %s\n%s\nTrigger: %s" % [
 			inst.display_name.to_upper(),
 			inst.description,
-			int(inst.condition_below_percent * 100)
+			_format_instinct_trigger(inst)
 		]
 	else:
 		instinct_desc_label.text = "No Instinct registered."
@@ -921,6 +1045,8 @@ func _refresh_reserve_tab() -> void:
 		swap_warning_label.text = ""
 		swap_reserve_btn.disabled = true
 		favorite_btn.disabled = true
+		if reserve_rename_btn != null:
+			reserve_rename_btn.disabled = true
 		return
 
 	if selected_reserve_index >= reserve.size():
@@ -933,7 +1059,7 @@ func _refresh_reserve_tab() -> void:
 		btn.clip_text = true
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var fav_str: String = " ★" if c.is_favorite else ""
-		btn.text = "%s%s\nLv.%d · %s" % [c.display_name(), fav_str, c.level, c.species.species_id]
+		btn.text = "%s%s\nLv.%d · %s" % [c.display_name(), fav_str, c.level, c.species.display_name if c.species != null else c.species.species_id]
 		btn.add_theme_font_size_override("font_size", 20)
 		if i == selected_reserve_index:
 			btn.add_theme_color_override("font_color", ACCENT_GOLD)
@@ -957,25 +1083,27 @@ func _refresh_reserve_tab() -> void:
 		b_loc = "Unknown Location"
 		
 	reserve_preview_label.text = "%s Lv.%d%s\nReserve Status: Roaming | Habitat: %s\nBonded: %s | Condition: %s" % [
-		sel.display_name(), sel.level, fav_tag,
+		sel.display_name_with_species(), sel.level, fav_tag,
 		habitat, b_loc, condition
 	]
 
 	favorite_btn.disabled = false
 	favorite_btn.text = "★ FAVORITE" if not sel.is_favorite else "★ UNFAVORITE"
+	if reserve_rename_btn != null:
+		reserve_rename_btn.disabled = false
 
 	# Swap check
 	var can_swap: bool = PartyManager.can_swap_in_current_location()
 	swap_reserve_btn.disabled = not can_swap
 	if not can_swap:
-		swap_warning_label.text = "⚠️ Reserve swapping is only permitted at an Outpost, Clinic, or Ranger Camp."
+		swap_warning_label.text = "! Reserve swapping is only permitted at an Outpost, Clinic, or Ranger Camp."
 		swap_reserve_btn.text = "SWAP UNAVAILABLE"
 	else:
 		swap_warning_label.text = ""
 		if PartyManager.party.size() < 6:
-			swap_reserve_btn.text = "➕ ADD TO PARTY"
+			swap_reserve_btn.text = "+ ADD TO PARTY"
 		else:
-			swap_reserve_btn.text = "🔄 SWAP INTO PARTY"
+			swap_reserve_btn.text = "SWAP INTO PARTY"
 
 
 func _layout_party_details() -> void:
@@ -988,11 +1116,13 @@ func _layout_party_details() -> void:
 	species_quote_label.size.y = maxf(98, species_quote_label.get_minimum_size().y)
 	set_lead_btn.position.y = species_quote_label.position.y + species_quote_label.size.y + 12
 	set_lead_btn.size = Vector2(maxf(1, width - 32), 64)
-	_party_favorite.position = Vector2(16, set_lead_btn.position.y + 76)
+	rename_btn.position = Vector2(16, set_lead_btn.position.y + 74)
+	rename_btn.size = set_lead_btn.size
+	_party_favorite.position = Vector2(16, rename_btn.position.y + 74)
 	_party_favorite.size = set_lead_btn.size
-	_party_store.position = Vector2(16, _party_favorite.position.y + 76)
+	_party_store.position = Vector2(16, _party_favorite.position.y + 74)
 	_party_store.size = set_lead_btn.size
-	_party_card.custom_minimum_size.y = maxf(394, _party_store.position.y + 80)
+	_party_card.custom_minimum_size.y = maxf(470, _party_store.position.y + 80)
 	var stat_width := maxf(1, _stats_card.size.x - 32)
 	detail_header_label.size.x = stat_width
 	detail_header_label.size.y = maxf(36, detail_header_label.get_minimum_size().y)
@@ -1013,9 +1143,14 @@ func _layout_reserve_preview() -> void:
 	var width := maxf(1, _reserve_preview.size.x - 32)
 	reserve_preview_label.size.x = width
 	swap_warning_label.size.x = width
-	favorite_btn.size = Vector2((width - 12) * 0.5, 64)
-	swap_reserve_btn.position = Vector2(28 + favorite_btn.size.x, 170)
-	swap_reserve_btn.size = favorite_btn.size
+	var third_w := maxf(80.0, (width - 24.0) / 3.0)
+	favorite_btn.position = Vector2(16, 170)
+	favorite_btn.size = Vector2(third_w, 64)
+	if reserve_rename_btn != null:
+		reserve_rename_btn.position = Vector2(16 + third_w + 12.0, 170)
+		reserve_rename_btn.size = Vector2(third_w, 64)
+	swap_reserve_btn.position = Vector2(16 + (third_w + 12.0) * 2.0, 170)
+	swap_reserve_btn.size = Vector2(third_w, 64)
 
 func _layout_modals() -> void:
 	if reserve_swap_modal == null or item_use_modal == null:
@@ -1034,6 +1169,26 @@ func _layout_modals() -> void:
 	for button in [_swap_cancel, _item_cancel]:
 		button.position = Vector2(18, modal_size.y - 80)
 		button.size = Vector2(modal_size.x - 36, 64)
+	if rename_modal != null:
+		var r_width := minf(620.0, available.x - 12.0)
+		var r_height := minf(310.0, maxf(240.0, available.y - 12.0))
+		rename_modal.size = Vector2(r_width, r_height)
+		rename_modal.position = (available - rename_modal.size) * 0.5
+		var inner_w := maxf(120.0, r_width - 36.0)
+		_rename_title.position = Vector2(18, 12)
+		_rename_title.size = Vector2(inner_w, 34)
+		_rename_species_label.position = Vector2(18, 48)
+		_rename_species_label.size = Vector2(inner_w, 46)
+		rename_input.position = Vector2(18, 102)
+		rename_input.size = Vector2(inner_w, 56)
+		var btn_w := maxf(70.0, (inner_w - 20.0) / 3.0)
+		var btn_y := r_height - 78.0
+		rename_save_btn.position = Vector2(18, btn_y)
+		rename_save_btn.size = Vector2(btn_w, 64)
+		rename_reset_btn.position = Vector2(18 + btn_w + 10.0, btn_y)
+		rename_reset_btn.size = Vector2(btn_w, 64)
+		rename_cancel_btn.position = Vector2(18 + (btn_w + 10.0) * 2.0, btn_y)
+		rename_cancel_btn.size = Vector2(btn_w, 64)
 
 func _apply_layout() -> void:
 	var ui_scale: float = 1.0 if MobileControls.enabled else 2.0

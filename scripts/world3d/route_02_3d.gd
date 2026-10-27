@@ -575,14 +575,14 @@ func _build_hud() -> void:
 	hud.add_child(top_bar)
 	
 	backpack_btn = Button.new()
-	backpack_btn.text = "🎒 [B/Q] BACKPACK"
+	backpack_btn.text = "[B/Q] BACKPACK"
 	backpack_btn.add_theme_font_size_override("font_size", 18)
 	backpack_btn.custom_minimum_size = Vector2(165, 38)
 	backpack_btn.pressed.connect(toggle_backpack)
 	top_bar.add_child(backpack_btn)
 	
 	system_menu_btn = Button.new()
-	system_menu_btn.text = "⚙️ [ESC] MENU"
+	system_menu_btn.text = "[ESC] MENU"
 	system_menu_btn.add_theme_font_size_override("font_size", 18)
 	system_menu_btn.custom_minimum_size = Vector2(135, 38)
 	system_menu_btn.pressed.connect(toggle_system_menu)

@@ -35,6 +35,9 @@ var _modal_content: VBoxContainer
 var _modal_title: Label
 var _modal_message: Label
 var _touch_layout: bool = false
+var _last_player_hp: int = -1
+var _last_enemy_hp: int = -1
+var _last_target_side: StringName = &"enemy"
 
 func _ready() -> void:
 	_build_ui()
@@ -47,6 +50,8 @@ func _ready() -> void:
 func setup(player: CreatureInstance, enemy: CreatureInstance) -> void:
 	player_creature = player
 	enemy_creature = enemy
+	_last_player_hp = player.current_vitality if player != null else -1
+	_last_enemy_hp = enemy.current_vitality if enemy != null else -1
 	_refresh_identity()
 	manager = BattleManager.new()
 	add_child(manager)
@@ -131,9 +136,9 @@ func _build_ui() -> void:
 	var bottom = _make_panel(Vector2(26, 422), Vector2(908, 104))
 	_bottom_panel = bottom
 	add_child(bottom)
-	log_label = _make_label("", 16)
-	log_label.position = Vector2(18, 10)
-	log_label.size = Vector2(430, 82)
+	log_label = _make_label("", 15)
+	log_label.position = Vector2(18, 8)
+	log_label.size = Vector2(436, 88)
 	log_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	bottom.add_child(log_label)
 
@@ -145,13 +150,13 @@ func _build_ui() -> void:
 	command_grid.add_theme_constant_override("h_separation", 6)
 	command_grid.add_theme_constant_override("v_separation", 6)
 	bottom.add_child(command_grid)
-	_add_command("[Z] STRIKE", func() -> void: manager.player_strike())
-	_add_command("[X] SKILLS", _show_skills)
-	_add_command("[C] GUARD", func() -> void: manager.player_guard())
-	_add_command("[S] ITEMS", _show_items)
-	_add_command("[V] WILDBOND", func() -> void: manager.player_wildbond())
-	_add_command("[A] CREATURES", _show_party_switch)
-	_add_command("[B] FLEE (RUN)", func() -> void: manager.player_run())
+	_add_command("[Z] STRIKE", func() -> void: manager.player_strike(), "Quickly attack using your creature's primary technique.")
+	_add_command("[X] SKILLS", _show_skills, "Inspect and choose from your creature's learned combat skills.")
+	_add_command("[C] GUARD", func() -> void: manager.player_guard(), "Brace for impact, boosting Guard by 55% against incoming attacks this turn.")
+	_add_command("[S] ITEMS", _show_items, "Use a healing herb, salve, or tonic from your backpack.")
+	_add_command("[V] WILDBOND", func() -> void: manager.player_wildbond(), "Reach out with your Resonance Band to bond with a weakened wild creature.")
+	_add_command("[A] CREATURES", _show_party_switch, "Switch to another healthy companion in your active party.")
+	_add_command("[B] FLEE (RUN)", func() -> void: manager.player_run(), "Retreat safely from this wild encounter back to the overworld.")
 
 	# Skills 3x2 grid
 	skills_grid = GridContainer.new()
@@ -219,7 +224,7 @@ func _build_ui() -> void:
 
 	var modal_title = Label.new()
 	_modal_title = modal_title
-	modal_title.text = "⚠️ CREATURE FAINTED!"
+	modal_title.text = "! CREATURE FAINTED !"
 	modal_title.add_theme_font_size_override("font_size", 18)
 	modal_title.add_theme_color_override("font_color", Color("#f5c451"))
 	modal_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -333,7 +338,7 @@ func _apply_layout() -> void:
 	var log_height: float = 66.0
 	log_label.position = Vector2(16, 10)
 	log_label.size = Vector2(_bottom_panel.size.x - 32, log_height)
-	log_label.add_theme_font_size_override("font_size", 18)
+	log_label.add_theme_font_size_override("font_size", 17)
 	log_label.clip_text = true
 	_command_scroll.position = Vector2(12, log_height + 20)
 	_command_scroll.size = Vector2(_bottom_panel.size.x - 24, actions_height - log_height - 32)
@@ -418,10 +423,10 @@ func _apply_desktop_layout() -> void:
 	player_xp_bar.size = Vector2(350, 6)
 	_bottom_panel.position = Vector2(26, 422)
 	_bottom_panel.size = Vector2(908, 104)
-	log_label.position = Vector2(18, 10)
-	log_label.size = Vector2(430, 82)
+	log_label.position = Vector2(18, 8)
+	log_label.size = Vector2(436, 88)
 	log_label.clip_text = false
-	log_label.add_theme_font_size_override("font_size", 16)
+	log_label.add_theme_font_size_override("font_size", 15)
 	for grid: GridContainer in [command_grid, skills_grid, party_grid, items_grid]:
 		grid.columns = 4 if grid == command_grid else 3
 		grid.position = Vector2(470, 10)
@@ -489,9 +494,10 @@ func _make_hp_bar(pos: Vector2, bar_size: Vector2, fill_color: Color = Color("#4
 	bar.add_theme_stylebox_override("fill", fill_style)
 	return bar
 
-func _add_command(text_value: String, action: Callable) -> void:
+func _add_command(text_value: String, action: Callable, tooltip: String = "") -> void:
 	var button = Button.new()
 	button.text = text_value
+	button.tooltip_text = tooltip
 	button.custom_minimum_size = Vector2(98, 38)
 	button.add_theme_font_size_override("font_size", 11)
 	var touch_text: String = "Flee" if text_value.contains("FLEE") else text_value.substr(text_value.find("] ") + 2).capitalize()
@@ -505,6 +511,7 @@ func _show_skills() -> void:
 	_clear_grid(skills_grid)
 
 	var move_keys: Array[String] = ["[Z]", "[X]", "[C]", "[V]"]
+	var skill_summaries: Array[String] = []
 	var idx = 0
 	for move in player_creature.learned_moves:
 		if move == null:
@@ -512,27 +519,45 @@ func _show_skills() -> void:
 		var captured_move: MoveData = move
 		var button = Button.new()
 		var key_hint = move_keys[idx] if idx < move_keys.size() else ""
-		button.text = "%s %s\nPwr %d · Acc %d%%" % [key_hint, captured_move.display_name, captured_move.power, captured_move.accuracy]
+		var short_sub := captured_move.get_short_button_subtitle()
+		button.text = "%s %s\n%s" % [key_hint, captured_move.display_name, short_sub]
+		button.tooltip_text = captured_move.get_full_description()
 		button.custom_minimum_size = Vector2(134, 38)
 		button.add_theme_font_size_override("font_size", 11)
-		_remember_button(button, Vector2(134, 38), 11)
+		var touch_lbl := "%s\n%s" % [captured_move.display_name, short_sub]
+		_remember_button(button, Vector2(134, 38), 11, touch_lbl)
+		button.mouse_entered.connect(func() -> void:
+			if skills_grid.visible:
+				log_label.text = captured_move.get_full_description()
+		)
+		button.focus_entered.connect(func() -> void:
+			if skills_grid.visible:
+				log_label.text = captured_move.get_full_description()
+		)
 		button.pressed.connect(func() -> void:
 			skills_grid.visible = false
 			command_grid.visible = true
+			_render_log()
 			manager.player_skill(captured_move)
 		)
 		skills_grid.add_child(button)
+		skill_summaries.append("• %s" % captured_move.get_full_description())
 		idx += 1
 
 	var back = Button.new()
 	back.text = "[B] BACK"
+	back.tooltip_text = "Return to main battle commands."
 	back.custom_minimum_size = Vector2(134, 38)
 	_remember_button(back, Vector2(134, 38), 11)
 	back.pressed.connect(func() -> void:
 		skills_grid.visible = false
 		command_grid.visible = true
+		_render_log()
 	)
 	skills_grid.add_child(back)
+
+	if not skill_summaries.is_empty():
+		log_label.text = "\n".join(skill_summaries.slice(0, 3))
 
 	command_grid.visible = false
 	party_grid.visible = false
@@ -554,19 +579,18 @@ func _show_party_switch() -> void:
 		var btn = Button.new()
 		var is_active: bool = (creature == player_creature)
 		var is_conscious: bool = creature.is_conscious()
-
-		var icon_str = "🦡" if creature.species.species_id == &"ratelit" else ("🐾" if creature.species.species_id == &"meerkit" else "🦔")
 		var status_str = " (ACTIVE)" if is_active else (" (FAINT)" if not is_conscious else "")
 
-		btn.text = "[%d] %s %s\nLv.%d  %d/%d HP%s" % [
+		btn.text = "[%d] %s\nLv.%d  %d/%d HP%s" % [
 			key_num,
-			icon_str,
 			creature.display_name(),
 			creature.level,
 			creature.current_vitality,
 			creature.max_vitality(),
 			status_str
 		]
+		var inst_info := "%s: %s" % [creature.species.instinct.display_name, creature.species.instinct.description] if creature.species != null and creature.species.instinct != null else "No instinct"
+		btn.tooltip_text = "%s (Lv.%d %s)\nHP: %d/%d · %s" % [creature.display_name(), creature.level, creature.species.display_name if creature.species else "", creature.current_vitality, creature.max_vitality(), inst_info]
 		btn.custom_minimum_size = Vector2(134, 38)
 		btn.add_theme_font_size_override("font_size", 11)
 		_remember_button(btn, Vector2(134, 38), 11)
@@ -576,6 +600,7 @@ func _show_party_switch() -> void:
 		btn.pressed.connect(func() -> void:
 			party_grid.visible = false
 			command_grid.visible = true
+			_render_log()
 			manager.player_voluntary_switch(captured)
 		)
 		party_grid.add_child(btn)
@@ -588,6 +613,7 @@ func _show_party_switch() -> void:
 	back.pressed.connect(func() -> void:
 		party_grid.visible = false
 		command_grid.visible = true
+		_render_log()
 	)
 	party_grid.add_child(back)
 
@@ -613,6 +639,7 @@ func _show_items() -> void:
 		var btn = Button.new()
 		var effect_str = "+%d HP" % item_data.heal_amount if item_data.heal_amount > 0 else ("Revive" if item_data.revive else ("Cure" if item_data.clears_status else "Item"))
 		btn.text = "[%d] %s x%d\n%s" % [key_num, item_data.display_name, count, effect_str]
+		btn.tooltip_text = "%s: %s" % [item_data.display_name, item_data.description]
 		btn.custom_minimum_size = Vector2(134, 38)
 		btn.add_theme_font_size_override("font_size", 11)
 		_remember_button(btn, Vector2(134, 38), 11)
@@ -639,6 +666,7 @@ func _show_items() -> void:
 	back.pressed.connect(func() -> void:
 		items_grid.visible = false
 		command_grid.visible = true
+		_render_log()
 	)
 	items_grid.add_child(back)
 
@@ -671,10 +699,8 @@ func _on_switch_needed(fainted: CreatureInstance) -> void:
 	var key_idx = 1
 	for creature in others:
 		var btn = Button.new()
-		var icon_str = "🦡" if creature.species.species_id == &"ratelit" else ("🐾" if creature.species.species_id == &"meerkit" else "🦔")
-		btn.text = "[%d] %s Send out %s (Lv.%d | %d/%d HP)" % [
+		btn.text = "[%d] Send out %s (Lv.%d | %d/%d HP)" % [
 			key_idx,
-			icon_str,
 			creature.display_name(),
 			creature.level,
 			creature.current_vitality,
@@ -694,7 +720,7 @@ func _on_switch_needed(fainted: CreatureInstance) -> void:
 		key_idx += 1
 
 	var run_btn = Button.new()
-	run_btn.text = "[B] 🏃 Flee Battle (Run)"
+	run_btn.text = "[B] Flee Battle (Run)"
 	run_btn.custom_minimum_size = Vector2(430, 36)
 	run_btn.add_theme_font_size_override("font_size", 13)
 	_remember_button(run_btn, Vector2(430, 36), 13, "Flee battle")
@@ -717,6 +743,7 @@ func _flee_from_faint_modal() -> void:
 
 func _on_player_switched(new_creature: CreatureInstance) -> void:
 	player_creature = new_creature
+	_last_player_hp = player_creature.current_vitality if player_creature != null else -1
 	player_portrait.visible = false
 	_refresh_identity()
 	command_grid.visible = true
@@ -734,6 +761,10 @@ func _refresh_identity() -> void:
 	var e_inst = enemy_creature.species.instinct.display_name if enemy_creature.species.instinct != null else "None"
 	player_name.text = "%s  Lv.%d  · %s" % [player_creature.display_name(), player_creature.level, p_inst]
 	enemy_name.text = "%s  Lv.%d  · %s" % [enemy_creature.display_name(), enemy_creature.level, e_inst]
+	if player_creature.species != null and player_creature.species.instinct != null:
+		player_name.tooltip_text = "%s — Instinct (%s): %s" % [player_creature.display_name(), p_inst, player_creature.species.instinct.description]
+	if enemy_creature.species != null and enemy_creature.species.instinct != null:
+		enemy_name.tooltip_text = "%s — Instinct (%s): %s" % [enemy_creature.display_name(), e_inst, enemy_creature.species.instinct.description]
 	player_portrait.setup(player_creature.species, true)
 	enemy_portrait.setup(enemy_creature.species, false)
 	_update_hp_ui(&"player", player_creature.current_vitality, player_creature.max_vitality())
@@ -775,47 +806,109 @@ func _on_xp_awarded(creature: CreatureInstance, amount: int, result: Dictionary,
 	else:
 		_on_log("+%d XP (%s)" % [amount, who])
 	if result.get("leveled_up", false):
-		_on_log("⭐ %s reached Level %d!" % [who, result.get("new_level", creature.level)])
+		var new_lvl: int = int(result.get("new_level", creature.level))
+		_on_log("★ %s reached Level %d!" % [who, new_lvl])
+		if effects != null and creature == player_creature:
+			effects.show_floating_text(player_portrait, "LEVEL UP! Lv.%d" % new_lvl, Color("#ffd54f"))
 		var new_moves: Array = result.get("new_moves", [])
 		for move in new_moves:
 			var move_data = move as MoveData
 			if move_data != null:
-				_on_log("✨ %s learned %s!" % [who, move_data.display_name])
+				_on_log("+ %s learned %s!" % [who, move_data.display_name])
 	if creature == player_creature:
 		_refresh_identity()
 		_refresh_xp_ui()
 
 func _on_hp_changed(side: StringName, current: int, maximum: int) -> void:
-	_update_hp_ui(side, current, maximum)
+	var prev_hp: int = _last_player_hp if side == &"player" else _last_enemy_hp
 	if side == &"player":
-		player_portrait.play_hit()
+		_last_player_hp = current
 	else:
-		enemy_portrait.play_hit()
+		_last_enemy_hp = current
+	_update_hp_ui(side, current, maximum)
+	var portrait := player_portrait if side == &"player" else enemy_portrait
+	if prev_hp >= 0 and current != prev_hp and effects != null:
+		var delta_hp: int = current - prev_hp
+		if delta_hp < 0:
+			effects.show_floating_text(portrait, "%d HP" % delta_hp, Color("#ff6b6b"))
+		elif delta_hp > 0:
+			effects.show_floating_text(portrait, "+%d HP" % delta_hp, Color("#69f0ae"))
+	if prev_hp < 0 or current < prev_hp:
+		portrait.play_hit()
 
 func _on_attack_performed(side: StringName) -> void:
+	_last_target_side = &"enemy" if side == &"player" else &"player"
 	var visual = player_portrait if side == &"player" else enemy_portrait
 	var dir = Vector2(1, 0) if side == &"player" else Vector2(-1, 0)
 	effects.play_attack(visual, dir)
 
 func _on_hit_landed(side: StringName) -> void:
+	_last_target_side = side
 	var visual = player_portrait if side == &"player" else enemy_portrait
 	effects.play_hit(visual)
 
-func _on_log(message: String) -> void:
-	recent_log.append(message)
-	while recent_log.size() > 3:
-		recent_log.pop_front()
-	log_label.text = "\n".join(recent_log)
+func _render_log() -> void:
+	if log_label != null:
+		log_label.text = "\n".join(recent_log)
 
-func _on_instinct(side: StringName, creature: CreatureInstance, _instinct_id: StringName, text: String) -> void:
-	if not text.strip_edges().is_empty():
-		_on_log(text)
+func _on_log(message: String) -> void:
+	if effects != null:
+		var target_portrait := player_portrait if _last_target_side == &"player" else enemy_portrait
+		if message == "A critical strike!":
+			effects.show_floating_text(target_portrait, "CRITICAL HIT! (1.5x)", Color("#ffab40"))
+		elif message == "The Aspect hits hard!":
+			effects.show_floating_text(target_portrait, "SUPER EFFECTIVE! (1.25x)", Color("#ffd54f"))
+		elif message == "The Aspect is resisted.":
+			effects.show_floating_text(target_portrait, "RESISTED (0.8x)", Color("#b0bec5"))
+		elif message == "It missed!":
+			effects.show_floating_text(target_portrait, "MISSED!", Color("#cfd8dc"))
+		elif message.ends_with("braces for the hit."):
+			effects.show_floating_text(player_portrait, "GUARD +55%!", Color("#81d4fa"))
+		elif message.ends_with("digs in defensively."):
+			effects.show_floating_text(enemy_portrait, "GUARD +55%!", Color("#81d4fa"))
+		elif message.ends_with("rose!") or message.ends_with("fell!"):
+			var stat_target := player_portrait if (player_creature != null and message.begins_with(player_creature.display_name())) else enemy_portrait
+			effects.show_floating_text(stat_target, message.replace(player_creature.display_name() + "'s " if player_creature else "", "").replace(enemy_creature.display_name() + "'s " if enemy_creature else "", "").to_upper(), Color("#80deea"))
+
+	# Combine rapid per-hit sub-events (damage, aspect effectiveness, attack XP)
+	# onto the active attack line so a single attack doesn't push previous actions off the 3-line log.
+	var is_followup_detail: bool = (
+		message.ends_with(" damage!")
+		or message == "The Aspect hits hard!"
+		or message == "The Aspect is resisted."
+		or (message.begins_with("+") and message.contains(" XP ("))
+	)
+	if is_followup_detail and not recent_log.is_empty():
+		recent_log[recent_log.size() - 1] = recent_log[recent_log.size() - 1] + " · " + message
+	else:
+		recent_log.append(message)
+		while recent_log.size() > 3:
+			recent_log.pop_front()
+	_render_log()
+
+func _on_instinct(side: StringName, creature: CreatureInstance, instinct_id: StringName, text: String) -> void:
+	var c_name := creature.display_name()
+	var i_name := creature.species.instinct.display_name if creature.species != null and creature.species.instinct != null else String(instinct_id)
+	var effect_detail := ""
+	if creature.species != null and creature.species.instinct != null:
+		var inst: InstinctData = creature.species.instinct
+		if inst.guard_modifier_percent > 0.0 and inst.power_modifier_percent > 0.0:
+			effect_detail = " (Power +%d%%, Guard +%d%%)" % [int(round(inst.power_modifier_percent * 100.0)), int(round(inst.guard_modifier_percent * 100.0))]
+		elif inst.guard_modifier_percent > 0.0:
+			effect_detail = " (Guard +%d%%)" % int(round(inst.guard_modifier_percent * 100.0))
+		elif inst.power_modifier_percent > 0.0:
+			effect_detail = " (Power +%d%%)" % int(round(inst.power_modifier_percent * 100.0))
+		elif inst.agility_modifier_percent > 0.0:
+			effect_detail = " (Agility +%d%%)" % int(round(inst.agility_modifier_percent * 100.0))
+	var log_line := (text if not text.strip_edges().is_empty() else ("%s's %s activated!" % [c_name, i_name]))
+	if not effect_detail.is_empty() and not log_line.contains("%"):
+		log_line += effect_detail
+	_on_log(log_line)
+
 	var portrait = player_portrait if side == &"player" else enemy_portrait
-	portrait.play_instinct(creature.species.instinct.instinct_id)
-	
-	var c_name = creature.display_name()
-	var i_name = creature.species.instinct.display_name
-	effects.play_instinct_spectacle(portrait, c_name, i_name, text)
+	var resolved_id: StringName = creature.species.instinct.instinct_id if creature.species != null and creature.species.instinct != null else instinct_id
+	portrait.play_instinct(resolved_id)
+	effects.play_instinct_spectacle(portrait, c_name, String(resolved_id), text)
 
 func _on_locked(value: bool) -> void:
 	for grid in [command_grid, skills_grid, party_grid, items_grid]:
@@ -889,21 +982,26 @@ func _unhandled_input(event: InputEvent) -> void:
 		if key == KEY_B or key == KEY_ESCAPE:
 			skills_grid.visible = false
 			command_grid.visible = true
+			_render_log()
 		elif key == KEY_Z and player_creature.learned_moves.size() > 0:
 			skills_grid.visible = false
 			command_grid.visible = true
+			_render_log()
 			manager.player_skill(player_creature.learned_moves[0])
 		elif key == KEY_X and player_creature.learned_moves.size() > 1:
 			skills_grid.visible = false
 			command_grid.visible = true
+			_render_log()
 			manager.player_skill(player_creature.learned_moves[1])
 		elif key == KEY_C and player_creature.learned_moves.size() > 2:
 			skills_grid.visible = false
 			command_grid.visible = true
+			_render_log()
 			manager.player_skill(player_creature.learned_moves[2])
 		elif key == KEY_V and player_creature.learned_moves.size() > 3:
 			skills_grid.visible = false
 			command_grid.visible = true
+			_render_log()
 			manager.player_skill(player_creature.learned_moves[3])
 
 	# Handle party grid shortcuts
@@ -911,12 +1009,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		if key == KEY_B or key == KEY_ESCAPE:
 			party_grid.visible = false
 			command_grid.visible = true
+			_render_log()
 		elif key >= KEY_1 and key <= KEY_6:
 			var idx = key - KEY_1
 			var party: Array[CreatureInstance] = PartyManager.party
 			if idx < party.size() and party[idx] != player_creature and party[idx].is_conscious():
 				party_grid.visible = false
 				command_grid.visible = true
+				_render_log()
 				manager.player_voluntary_switch(party[idx])
 
 	# Handle items grid shortcuts
@@ -924,6 +1024,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		if key == KEY_B or key == KEY_ESCAPE:
 			items_grid.visible = false
 			command_grid.visible = true
+			_render_log()
 		elif key >= KEY_1 and key <= KEY_9:
 			var idx = key - KEY_1
 			var battle_items: Array[Dictionary] = InventoryManager.get_battle_items()

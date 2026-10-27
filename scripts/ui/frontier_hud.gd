@@ -28,7 +28,7 @@ var _session_fingerprint: String = ""
 var header_details: HBoxContainer
 var legend_panel: PanelContainer
 var _resources_time: float = 0.0
-var _controls_time: float = 30.0
+var _controls_time: float = 12.0
 var _header: PanelContainer
 var _header_row: BoxContainer
 var _brand: VBoxContainer
@@ -72,10 +72,21 @@ var _mission_expanded: bool = false
 var _objective_popup_timer: float = 0.0
 var _objective_manual_open: bool = false
 var _saved_time: float = 0.0
+var _camp_highlighted: bool = false
 
 func _on_homestead_changed() -> void:
 	_resources_time = 5.0
 	refresh()
+	if is_instance_valid(exploration) and is_instance_valid(exploration.homestead):
+		var total_res: int = (
+			exploration.homestead.get_resource_count("wood")
+			+ exploration.homestead.get_resource_count("stone")
+			+ exploration.homestead.get_resource_count("fiber")
+			+ exploration.homestead.get_resource_count("crystals")
+		)
+		if total_res > 0 and not exploration.homestead.has_meta("camp_discovery_shown") and exploration.homestead.structures.is_empty():
+			exploration.homestead.set_meta("camp_discovery_shown", true)
+			toast("Materials gathered! Press C (or tap MENU → CAMP & BUILD) to open the Camp & Build menu.", 6.5)
 
 func _ready() -> void:
 	layer = 20
@@ -86,8 +97,8 @@ func _ready() -> void:
 	add_child(root)
 	var header := PanelContainer.new()
 	_header = header
-	header.position = Vector2(28, 24)
-	header.size = Vector2(1864, 92)
+	header.position = Vector2(28, 20)
+	header.size = Vector2(1864, 68)
 	header.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(header)
 	var row := BoxContainer.new()
@@ -96,18 +107,18 @@ func _ready() -> void:
 	var brand := VBoxContainer.new()
 	_brand = brand
 	brand.add_theme_constant_override("separation", 0)
-	brand.custom_minimum_size.x = 260
+	brand.custom_minimum_size.x = 230
 	row.add_child(brand)
-	_brand_title = UI.label("WILDBOUND", 29, UI.GOLD)
+	_brand_title = UI.label("WILDBOUND", 24, UI.GOLD)
 	brand.add_child(_brand_title)
-	_brand_zone = UI.label({"route_01_3d":"BUSHVELD  /  ROUTE 01", "sanctuary_town":"ACACIA OUTPOST", "route_02_3d":"RIVERINE WOODLAND  /  ROUTE 02"}.get(exploration.zone_id,"THE FRONTIER"), 14, UI.MUTED)
+	_brand_zone = UI.label({"route_01_3d":"BUSHVELD  /  ROUTE 01", "sanctuary_town":"ACACIA OUTPOST", "route_02_3d":"RIVERINE WOODLAND  /  ROUTE 02"}.get(exploration.zone_id,"THE FRONTIER"), 13, UI.MUTED)
 	brand.add_child(_brand_zone)
 	
 	header_details = HBoxContainer.new()
 	header_details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(header_details)
 	
-	resources_label = UI.label("", 22)
+	resources_label = UI.label("", 19)
 	resources_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	resources_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	header_details.add_child(resources_label)
@@ -118,15 +129,15 @@ func _ready() -> void:
 		
 	var objective_panel := PanelContainer.new()
 	_objective_panel = objective_panel
-	objective_panel.position = Vector2(28, 136)
-	objective_panel.custom_minimum_size.x = 570
+	objective_panel.position = Vector2(28, 100)
+	objective_panel.custom_minimum_size.x = 410
 	objective_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	objective_panel.add_theme_stylebox_override("panel",UI.panel(Color(0.08,0.15,0.13,0.89)))
+	objective_panel.add_theme_stylebox_override("panel", _desktop_compact_panel())
 	root.add_child(objective_panel)
 	var objective := VBoxContainer.new()
 	_objective_box = objective
 	objective_panel.add_child(objective)
-	_objective_title = UI.label("SOMETHING IN THE WILD", 14, UI.GOLD)
+	_objective_title = UI.label("SOMETHING IN THE WILD", 13, UI.GOLD)
 	objective.add_child(_objective_title)
 	_mission_toggle = UI.button("Mission", _toggle_mission)
 	_mission_toggle.name = "MissionSummary"
@@ -142,21 +153,21 @@ func _ready() -> void:
 	_travel_row = BoxContainer.new()
 	_travel_row.vertical = true
 	objective.add_child(_travel_row)
-	travel_label = UI.label("ON FOOT", 16, UI.MUTED)
+	travel_label = UI.label("ON FOOT", 14, UI.MUTED)
 	_travel_row.add_child(travel_label)
-	flight_label = UI.label("", 16, UI.GOLD)
+	flight_label = UI.label("", 15, UI.GOLD)
 	_travel_row.add_child(flight_label)
 	flight_label.visible = false
-	_mobile_resources = UI.label("", 18, UI.MUTED)
+	_mobile_resources = UI.label("", 17, UI.MUTED)
 	_mobile_resources.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	objective.add_child(_mobile_resources)
-	_mobile_saved = UI.label("", 16, UI.MUTED)
+	_mobile_saved = UI.label("", 15, UI.MUTED)
 	_mobile_saved.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_mobile_saved.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_travel_row.add_child(_mobile_saved)
 	map = preload("res://scripts/ui/frontier_map.gd").new()
 	map.exploration = exploration
-	map.position = Vector2(1682, 142)
+	map.position = Vector2(1682, 104)
 	map.size = Vector2(210,165)
 	root.add_child(map)
 	_mobile_menu = UI.button("MENU", open_navigation)
@@ -164,42 +175,43 @@ func _ready() -> void:
 	_mobile_menu.focus_mode = Control.FOCUS_NONE
 	root.add_child(_mobile_menu)
 	legend_panel = PanelContainer.new()
-	legend_panel.position = Vector2(1682,307)
-	legend_panel.size = Vector2(210,42)
-	legend_panel.add_theme_stylebox_override("panel",UI.panel())
+	legend_panel.position = Vector2(1682,273)
+	legend_panel.size = Vector2(210,38)
+	legend_panel.add_theme_stylebox_override("panel", _desktop_compact_panel())
 	root.add_child(legend_panel)
-	legend_panel.add_child(UI.label("N ↑  • resources  ▪ camp",14, UI.TEXT))
-	prompt_label = UI.label("",26,UI.GOLD)
+	legend_panel.add_child(UI.label("N ↑  • resources  ▪ camp",13, UI.TEXT))
+	prompt_label = UI.label("",20,UI.GOLD)
 	prompt_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	prompt_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	prompt_panel = PanelContainer.new()
-	prompt_panel.position = Vector2(390,865)
-	prompt_panel.size = Vector2(1140,58)
+	prompt_panel.position = Vector2(620,885)
+	prompt_panel.size = Vector2(680,52)
 	prompt_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(prompt_panel)
 	prompt_panel.add_child(prompt_label)
 	prompt_panel.visible = false
-	toast_label = UI.label("",23,UI.GREEN)
+	toast_label = UI.label("",19,UI.GREEN)
 	toast_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	toast_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	toast_panel = PanelContainer.new()
-	toast_panel.position = Vector2(420,782)
-	toast_panel.size = Vector2(1080,70)
+	toast_panel.position = Vector2(620,816)
+	toast_panel.size = Vector2(680,58)
 	toast_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(toast_panel)
 	toast_panel.add_child(toast_label)
 	var bottom := PanelContainer.new()
 	controls_panel = bottom
-	bottom.position = Vector2(28,990)
-	bottom.size = Vector2(1864,66)
+	bottom.position = Vector2(28,1004)
+	bottom.size = Vector2(1864,48)
 	bottom.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bottom.add_theme_stylebox_override("panel", _desktop_compact_panel())
 	root.add_child(bottom)
 	var bottom_row := HBoxContainer.new()
 	bottom.add_child(bottom_row)
-	controls_label = UI.label("WASD Move   SHIFT Sprint   SPACE Jump   E Gather / interact   C Build   R Ride   F Fly",18,UI.MUTED)
+	controls_label = UI.label("WASD Move   SHIFT Sprint   SPACE Jump   E Gather / interact   C Camp & Build   R Ride   F Fly",16,UI.MUTED)
 	controls_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bottom_row.add_child(controls_label)
-	save_label = UI.label("",16,UI.MUTED)
+	save_label = UI.label("",15,UI.MUTED)
 	bottom_row.add_child(save_label)
 	_build_modal()
 	get_viewport().size_changed.connect(_reflow)
@@ -254,35 +266,43 @@ func _compact_panel() -> StyleBoxFlat:
 	style.content_margin_bottom = 10
 	return style
 
+func _desktop_compact_panel() -> StyleBoxFlat:
+	var style := UI.panel(Color(0.08, 0.15, 0.13, 0.84))
+	style.content_margin_left = 14
+	style.content_margin_right = 14
+	style.content_margin_top = 8
+	style.content_margin_bottom = 8
+	return style
+
 func _reflow() -> void:
 	if not is_instance_valid(_header):
 		return
 	_mobile = _touch_enabled()
 	var safe := _safe_rect()
-	var inset := 16.0 if _mobile else 28.0
+	var inset := 16.0 if _mobile else 24.0
 	var usable := safe.grow(-inset)
 	var narrow: bool = _mobile and usable.size.x < 700
 	_header_row.vertical = narrow
-	_header.add_theme_stylebox_override("panel", _compact_panel() if _mobile else UI.panel())
+	_header.add_theme_stylebox_override("panel", _compact_panel() if _mobile else _desktop_compact_panel())
 	_header.position = usable.position
-	_header.size = Vector2(usable.size.x, 124 if narrow else 84 if _mobile else 92)
-	_brand.custom_minimum_size.x = 0 if narrow else 160 if _mobile else 260
-	_brand_title.add_theme_font_size_override("font_size", 23 if _mobile else 29)
+	_header.size = Vector2(usable.size.x, 124 if narrow else 84 if _mobile else 68)
+	_brand.custom_minimum_size.x = 0 if narrow else 160 if _mobile else 220
+	_brand_title.add_theme_font_size_override("font_size", 23 if _mobile else 24)
 	_brand_zone.visible = not _mobile
 	_brand.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	_header_row.add_theme_constant_override("separation", 8 if narrow else 12 if _mobile else 24)
-	header_details.add_theme_constant_override("separation", 8 if _mobile else 12)
+	_header_row.add_theme_constant_override("separation", 8 if narrow else 12 if _mobile else 18)
+	header_details.add_theme_constant_override("separation", 8 if _mobile else 10)
 	resources_label.visible = not _mobile
-	resources_label.add_theme_font_size_override("font_size", 22)
+	resources_label.add_theme_font_size_override("font_size", 18)
 	var mobile_labels: Array[String] = ["CAMP", "ATLAS", "FRIENDS", "PACK", "MENU"]
 	var desktop_labels: Array[String] = ["C  CAMP", "X  ATLAS", "M  FRIENDS", "Q  PACK", "ESC  MENU"]
 	for index in _navigation.size():
 		var button: Button = _navigation[index]
 		button.text = mobile_labels[index] if _mobile else desktop_labels[index]
-		button.custom_minimum_size = Vector2(0, 64 if _mobile else 52)
+		button.custom_minimum_size = Vector2(0, 64 if _mobile else 44)
 		button.focus_mode = Control.FOCUS_NONE if _mobile else Control.FOCUS_ALL
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL if _mobile else Control.SIZE_FILL
-		button.add_theme_font_size_override("font_size", 21)
+		button.add_theme_font_size_override("font_size", 21 if _mobile else 17)
 		if _mobile:
 			for state: String in ["normal", "hover", "pressed", "disabled"]:
 				var style: StyleBoxFlat = root.theme.get_stylebox(state, "Button").duplicate()
@@ -292,36 +312,38 @@ func _reflow() -> void:
 		else:
 			for state: String in ["normal", "hover", "pressed", "disabled"]:
 				button.remove_theme_stylebox_override(state)
-	_objective_panel.position = usable.position + Vector2(0, _header.size.y + 16 if _mobile else 112)
-	_objective_panel.custom_minimum_size.x = 0 if _mobile else 570
-	_objective_panel.size = Vector2(usable.size.x if narrow else minf(540, usable.size.x * 0.62) if _mobile else 570, 0)
-	_objective_panel.add_theme_stylebox_override("panel", _compact_panel() if _mobile else UI.panel(Color(0.08,0.15,0.13,0.89)))
+	_objective_panel.position = usable.position + Vector2(0, _header.size.y + 16 if _mobile else 80)
+	_objective_panel.custom_minimum_size.x = 0 if _mobile else 410
+	_objective_panel.size = Vector2(usable.size.x if narrow else minf(540, usable.size.x * 0.62) if _mobile else 410, 0)
+	_objective_panel.add_theme_stylebox_override("panel", _compact_panel() if _mobile else _desktop_compact_panel())
 	_objective_title.visible = not _mobile
-	_objective_box.add_theme_constant_override("separation", 4 if _mobile else 12)
+	_objective_box.add_theme_constant_override("separation", 4 if _mobile else 6)
 	_travel_row.vertical = not _mobile
-	objective_label.custom_minimum_size.x = 0 if _mobile else 520
-	objective_label.add_theme_font_size_override("font_size", 20 if _mobile else 22)
-	travel_label.add_theme_font_size_override("font_size", 16)
+	objective_label.custom_minimum_size.x = 0 if _mobile else 380
+	objective_label.add_theme_font_size_override("font_size", 16 if _mobile else 16)
+	travel_label.add_theme_font_size_override("font_size", 14)
 	_mobile_resources.visible = _mobile
 	_mobile_saved.visible = _mobile and not _mobile_saved.text.is_empty()
 	# The small map is supplementary; leave the phone centre clear for the world.
 	map.visible = not _mobile
 	legend_panel.visible = not _mobile
-	map.position = Vector2(usable.end.x - 210, usable.position.y + 118)
+	map.position = Vector2(usable.end.x - 210, usable.position.y + 80)
 	legend_panel.position = map.position + Vector2(0, 165)
 	controls_panel.visible = not _mobile
-	controls_panel.position = Vector2(usable.position.x, usable.end.y - 66)
-	controls_panel.size = Vector2(usable.size.x, 66)
-	var prompt_width := minf(usable.size.x, 760 if _mobile else 1140)
-	prompt_panel.position = Vector2(safe.get_center().x - prompt_width / 2.0, usable.end.y - (226 if _mobile else 191))
-	prompt_panel.size = Vector2(prompt_width, 56 if _mobile else 58)
-	prompt_panel.add_theme_stylebox_override("panel", _compact_panel() if _mobile else UI.panel())
-	prompt_label.add_theme_font_size_override("font_size", 21 if _mobile else 26)
-	var toast_width := minf(usable.size.x, 760 if _mobile else 1080)
-	toast_panel.position = Vector2(safe.get_center().x - toast_width / 2.0, prompt_panel.position.y - (76 if _mobile else 83))
-	toast_panel.size = Vector2(toast_width, 66 if _mobile else 70)
-	toast_panel.add_theme_stylebox_override("panel", _compact_panel() if _mobile else UI.panel())
-	toast_label.add_theme_font_size_override("font_size", 21 if _mobile else 23)
+	controls_panel.position = Vector2(usable.position.x, usable.end.y - 48)
+	controls_panel.size = Vector2(usable.size.x, 48)
+	var prompt_width := minf(usable.size.x, 760 if _mobile else 680)
+	prompt_panel.position = Vector2(safe.get_center().x - prompt_width / 2.0, usable.end.y - (226 if _mobile else 120))
+	prompt_panel.size = Vector2(prompt_width, 56 if _mobile else 50)
+	prompt_panel.add_theme_stylebox_override("panel", _compact_panel() if _mobile else _desktop_compact_panel())
+	prompt_label.custom_minimum_size.x = maxf(180.0, prompt_width - 36.0)
+	prompt_label.add_theme_font_size_override("font_size", 20 if _mobile else 19)
+	var toast_width := minf(usable.size.x, 760 if _mobile else 680)
+	toast_panel.position = Vector2(safe.get_center().x - toast_width / 2.0, prompt_panel.position.y - (76 if _mobile else 66))
+	toast_panel.size = Vector2(toast_width, 66 if _mobile else 56)
+	toast_panel.add_theme_stylebox_override("panel", _compact_panel() if _mobile else _desktop_compact_panel())
+	toast_label.custom_minimum_size.x = maxf(180.0, toast_width - 36.0)
+	toast_label.add_theme_font_size_override("font_size", 19 if _mobile else 18)
 	prompt_label.text = _touch_copy(_raw_prompt) if _mobile else _raw_prompt
 	toast_label.text = _touch_copy(_raw_toast) if _mobile else _raw_toast
 	var modal_width := usable.size.x if _mobile else minf(1250, usable.size.x)
@@ -342,7 +364,7 @@ func _reflow() -> void:
 		map.size = Vector2(128, 100)
 		map.position = _mobile_menu.position + Vector2(0, 70)
 		map.show()
-		_objective_title.text = "🎯 " + str(ProgressionManager.get_stage().get("title", _brand_zone.text)).to_upper()
+		_objective_title.text = "◆ " + str(ProgressionManager.get_stage().get("title", _brand_zone.text)).to_upper()
 		_objective_title.add_theme_font_size_override("font_size", 14)
 		_objective_panel.position = safe.position
 		_objective_panel.size = Vector2(minf(320, safe.size.x - 152), 0)
@@ -356,19 +378,22 @@ func _reflow() -> void:
 		toast_panel.size.x = feedback_width
 		toast_panel.position.x = safe.get_center().x - feedback_width / 2
 		toast_panel.position.y = safe.position.y + 178
+		toast_label.custom_minimum_size.x = maxf(160.0, feedback_width - 32.0)
 		prompt_panel.size.x = feedback_width
 		prompt_panel.position.x = safe.get_center().x - feedback_width / 2
 		prompt_panel.position.y = safe.end.y - 238
+		prompt_label.custom_minimum_size.x = maxf(160.0, feedback_width - 32.0)
 	else:
 		_header.show()
 		_mobile_menu.hide()
 		map.custom_minimum_size = Vector2(210, 165)
 		map.size = Vector2(210, 165)
-		_objective_title.text = "YOUR HOMESTEAD"
+		_objective_title.text = str(ProgressionManager.get_stage().get("title", "YOUR HOMESTEAD")).to_upper()
 		travel_label.show()
-		objective_label.add_theme_font_size_override("font_size", 18)
-		objective_label.custom_minimum_size.x = 420
+		objective_label.add_theme_font_size_override("font_size", 16)
+		objective_label.custom_minimum_size.x = 380
 	_update_mission()
+	_update_camp_highlight()
 
 func _style_mission_toggle() -> void:
 	if not is_instance_valid(_mission_toggle): return
@@ -415,14 +440,33 @@ func _update_mission() -> void:
 	_objective_title.visible = not _mobile or _mission_expanded
 	var summary := objective_label.text.split("\n")[0]
 	if summary.length() > 30: summary = summary.left(28).strip_edges() + "…"
-	_mission_toggle.text = ("▾ " if _mission_expanded else "🎯 ") + (summary if not summary.is_empty() else "Task")
+	_mission_toggle.text = ("▾ " if _mission_expanded else "◆ ") + (summary if not summary.is_empty() else "Task")
 	_mission_toggle.tooltip_text = objective_label.text
 	if _mobile:
 		if _mission_expanded:
 			_objective_panel.add_theme_stylebox_override("panel", _compact_panel())
 		else:
 			_objective_panel.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
-		_objective_panel.size.y = _objective_panel.get_combined_minimum_size().y
+	_objective_panel.size.y = _objective_panel.get_combined_minimum_size().y
+
+func _update_camp_highlight() -> void:
+	if _navigation.is_empty() or not is_instance_valid(_navigation[0]):
+		return
+	var camp_btn: Button = _navigation[0]
+	var should_highlight: bool = false
+	if is_instance_valid(exploration) and is_instance_valid(exploration.homestead):
+		var shelter_ready: bool = bool(exploration.homestead.get_craft_status("creature_shelter").get("success", false))
+		var shelter_built: bool = exploration.homestead.has_structure("creature_shelter")
+		var obj_lower: String = objective_label.text.to_lower() if is_instance_valid(objective_label) else ""
+		var shelter_task: bool = ("shelter" in obj_lower or "camp" in obj_lower or "build" in obj_lower)
+		should_highlight = (not shelter_built and (shelter_ready or shelter_task))
+	_camp_highlighted = should_highlight
+	if should_highlight:
+		camp_btn.add_theme_color_override("font_color", UI.GOLD)
+		camp_btn.tooltip_text = "Open Camp & Build menu (Shortcut: C)"
+	else:
+		camp_btn.remove_theme_color_override("font_color")
+		camp_btn.tooltip_text = "Open Camp & Build menu (Shortcut: C)"
 
 func open_navigation() -> void:
 	if current_modal == "navigation":
@@ -443,6 +487,8 @@ func open_navigation() -> void:
 		for entry: Array in [["BACKPACK", func(): _open_legacy("backpack")], ["WILD ATLAS · GUIDE", open_atlas], ["COMPANION ABILITIES", open_abilities], ["CAMP & BUILD", open_camp], ["FRIENDS · EXPERIMENTAL", open_friends], ["SAVE & SETTINGS", func(): _open_legacy("menu")]]:
 			var button := UI.button(entry[0], entry[1])
 			button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			if entry[0] == "CAMP & BUILD" and _camp_highlighted:
+				button.add_theme_color_override("font_color", UI.GOLD)
 			links.add_child(button)
 		var camera_button := UI.button("CAMERA VIEW", func():
 			close_modal()
@@ -522,11 +568,10 @@ func _process(delta: float) -> void:
 		JavaScriptBridge.eval("if (window.wildbound && window.wildbound.setControlsObscured) window.wildbound.setControlsObscured(%s);" % str(obscured))
 	var dialogue_open: bool = "dialogue_panel" in exploration.zone and is_instance_valid(exploration.zone.dialogue_panel) and exploration.zone.dialogue_panel.visible
 	# Wrapped text initially reports a tall minimum before container width is
-	# assigned. Refit feedback after layout rather than retaining that height.
-	if _mobile:
-		toast_panel.size.y = 66
-		prompt_panel.size.y = 56
-		_objective_panel.size.y = _objective_panel.get_combined_minimum_size().y
+	# assigned. Refit feedback after layout on both desktop and mobile.
+	toast_panel.size.y = 66 if _mobile else 56
+	prompt_panel.size.y = 56 if _mobile else 50
+	_objective_panel.size.y = _objective_panel.get_combined_minimum_size().y
 	
 	# Determine context
 	var building: bool = not exploration.build_recipe.is_empty()
@@ -538,16 +583,18 @@ func _process(delta: float) -> void:
 			prompt_panel.size.y = 80
 			prompt_label.text = "Drag pad to position · Rotate, then Place\n" + exploration.build_message
 	var in_menu: bool = not current_modal.is_empty()
+	var legacy_open: bool = exploration.is_legacy_overlay_open()
 	var gathering: bool = _toast_time > 0 or _resources_time > 0
 	
 	var context_active: bool = building or in_menu or gathering
 	
-	# Update visibility smoothly or directly
-	header_details.modulate.a = move_toward(header_details.modulate.a, 1.0 if _mobile or context_active else 0.0, delta * 3.0)
+	# Keep navigation shortcuts always visible on desktop; only fade the resource counter when idle
+	header_details.modulate.a = 1.0
+	resources_label.modulate.a = move_toward(resources_label.modulate.a, 1.0 if context_active else 0.0, delta * 3.0)
 	legend_panel.modulate.a = move_toward(legend_panel.modulate.a, 1.0 if map.visible and context_active else 0.0, delta * 3.0)
-	_objective_panel.visible = not _mobile or (not in_menu and not dialogue_open and not exploration.is_legacy_overlay_open())
+	_objective_panel.visible = not in_menu and not dialogue_open and not legacy_open
 	if _mobile:
-		map.visible = not in_menu and not dialogue_open and not exploration.is_legacy_overlay_open()
+		map.visible = not in_menu and not dialogue_open and not legacy_open
 		_mobile_menu.visible = map.visible
 		var show_resources: bool = building or _resources_time > 0
 		_mobile_resources.visible = show_resources
@@ -555,19 +602,22 @@ func _process(delta: float) -> void:
 		_saved_time = maxf(0, _saved_time - delta)
 		_mobile_saved.visible = _saved_time > 0 or _mobile_saved.text.begins_with("Save failed")
 	
-	# Controls should fade out after a long time (e.g., 30s) or stay hidden during normal play, showing as hints when context changes
+	# Controls should fade out after a short time (e.g., 12s) or stay hidden during normal play, showing as hints when context changes
 	if _controls_time > 0:
 		_controls_time -= delta
-	controls_panel.visible = not _mobile and not dialogue_open
-	controls_panel.modulate.a = move_toward(controls_panel.modulate.a, 1.0 if (_controls_time > 0 or in_menu or building) and not dialogue_open else 0.0, delta * 2.0)
+	controls_panel.visible = not _mobile and not dialogue_open and not legacy_open
+	controls_panel.modulate.a = move_toward(controls_panel.modulate.a, 1.0 if (_controls_time > 0 or in_menu or building) and not dialogue_open and not legacy_open else 0.0, delta * 2.0)
 	
-	if dialogue_open:
+	if dialogue_open or in_menu or legacy_open or prompt_label.text.strip_edges().is_empty():
 		prompt_panel.visible = false
+	if dialogue_open:
 		toast_panel.visible = false
 	if _toast_time > 0:
 		_toast_time -= delta
 		toast_panel.modulate.a = clampf(_toast_time * 2,0,1)
-		toast_panel.visible = _toast_time > 0 and not dialogue_open
+		toast_panel.visible = _toast_time > 0 and not dialogue_open and not toast_label.text.strip_edges().is_empty()
+	else:
+		toast_panel.visible = false
 	if _mobile and building: toast_panel.hide()
 	if _resources_time > 0:
 		_resources_time -= delta
@@ -585,14 +635,16 @@ func refresh() -> void:
 	objective_label.text = ProgressionManager.get_active_objective()
 	_objective_title.text = str(ProgressionManager.get_stage().get("title","SOMETHING IN THE WILD")).to_upper()
 	_update_mission()
+	_update_camp_highlight()
 	travel_label.text = exploration.player.get_travel_label() if exploration.player.has_method("get_travel_label") else "ON FOOT"
 	if current_modal == "camp":
 		_render_camp()
 
 func tick(prompt: String) -> void:
 	_raw_prompt = prompt
-	prompt_label.text = _touch_copy(prompt) if _mobile else prompt
-	prompt_panel.visible = not prompt.is_empty()
+	var display_prompt := _touch_copy(prompt) if _mobile else prompt
+	prompt_label.text = display_prompt
+	prompt_panel.visible = not display_prompt.strip_edges().is_empty() and current_modal.is_empty() and not exploration.is_legacy_overlay_open()
 	var new_travel = exploration.player.get_travel_label() if exploration.player.has_method("get_travel_label") else "ON FOOT"
 	if travel_label.text != new_travel:
 		travel_label.text = new_travel
@@ -613,21 +665,26 @@ func tick(prompt: String) -> void:
 	map.queue_redraw()
 	var new_controls := ""
 	if not exploration.build_recipe.is_empty():
-		new_controls = "WASD Position   T Rotate   ENTER Place building   ESC Cancel"
+		new_controls = "Mouse / WASD Position   R / T / Wheel Rotate   Click / E / ENTER Place   Right-Click / ESC Cancel"
 	elif exploration.player.is_flying():
 		new_controls = "WASD Fly   SHIFT Faster   SPACE Rise   CTRL Descend   F Land   M Friends"
 	elif exploration.player.is_mounted():
-		new_controls = "WASD Ride   SHIFT Gallop   SPACE Jump   R Dismount   E Interact   C Camp"
+		new_controls = "WASD Ride   SHIFT Gallop   SPACE Jump   R Dismount   E Interact   C Camp & Build"
 	else:
-		new_controls = "WASD Move   SHIFT Sprint   SPACE Jump   E Gather / interact   C Build   R Ride   F Fly"
+		new_controls = "WASD Move   SHIFT Sprint   SPACE Jump   E Gather / interact   C Camp & Build   R Ride   F Fly"
 	if controls_label.text != new_controls:
 		controls_label.text = new_controls
 		_controls_time = 8.0
 
 func toast(message: String, seconds: float = 4.0) -> void:
 	_raw_toast = message
-	toast_label.text = _touch_copy(message) if _mobile else message
-	toast_panel.modulate.a = 1
+	var display_toast := _touch_copy(message) if _mobile else message
+	toast_label.text = display_toast
+	if display_toast.strip_edges().is_empty() or seconds <= 0.0:
+		toast_panel.visible = false
+		_toast_time = 0.0
+		return
+	toast_panel.modulate.a = 1.0
 	toast_panel.visible = true
 	_toast_time = seconds
 
@@ -689,6 +746,8 @@ func open_camp() -> void:
 	if current_modal == "camp":
 		close_modal()
 	elif _open("camp"):
+		if is_instance_valid(exploration) and is_instance_valid(exploration.homestead):
+			exploration.homestead.set_meta("camp_discovery_shown", true)
 		_render_camp()
 
 func _render_camp() -> void:
@@ -808,7 +867,7 @@ func _render_atlas() -> void:
 	realm_scroll.add_child(realm_row)
 	for realm_key: String in WildAtlasManager.get_realms():
 		var short_name: String = realm_key.replace("_", " ").capitalize()
-		if realm_key == "WILDBOUND": short_name = "🐾 WILDBOUND (41)"
+		if realm_key == "WILDBOUND": short_name = "★ WILDBOUND (41)"
 		elif realm_key == "SOUTH_AMERICA": short_name = "S. AMERICA"
 		elif realm_key == "NORTH_AMERICA": short_name = "N. AMERICA"
 		elif realm_key == "POLAR_OCEANS": short_name = "POLAR/OCEAN"
@@ -946,7 +1005,7 @@ func _populate_atlas_list(list_vbox: VBoxContainer) -> void:
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		btn.custom_minimum_size.y = 48 if not _mobile else 54
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var badge := " ★ WILDBOUND" if is_in_game else (" ★ BONDED" if is_bonded else " 📖")
+		var badge := " ★ WILDBOUND" if is_in_game else (" ★ BONDED" if is_bonded else " ◆")
 		btn.text = "%s %s (%s)%s" % [cid, cname, cspecies, badge]
 		if is_active:
 			btn.add_theme_color_override("font_color", UI.GOLD)
@@ -1032,7 +1091,7 @@ func _update_atlas_selection() -> void:
 		emblem.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		emblem.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		emblem.add_theme_stylebox_override("panel", UI.panel(Color("162e26"), Color("40554b")))
-		var emblem_lbl := UI.label("📖\n%s\n%s" % [aspect, cname.left(3).to_upper()], 20, UI.GOLD)
+		var emblem_lbl := UI.label("◆\n%s\n%s" % [aspect, cname.left(3).to_upper()], 20, UI.GOLD)
 		emblem_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		emblem_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		emblem.add_child(emblem_lbl)
@@ -1058,7 +1117,7 @@ func _update_atlas_selection() -> void:
 	tags_row.add_theme_constant_override("separation", 10)
 	name_box.add_child(tags_row)
 
-	var status_text := "★ WILDBOUND ROSTER" if is_in_game else ("★ BONDED STARTER" if is_bonded else "📖 FIELD ENTRY")
+	var status_text := "★ WILDBOUND ROSTER" if is_in_game else ("★ BONDED STARTER" if is_bonded else "◆ FIELD ENTRY")
 	var status_tag := UI.label(status_text, 15, UI.GREEN if is_bonded else UI.MUTED)
 	status_tag.autowrap_mode = TextServer.AUTOWRAP_OFF
 	tags_row.add_child(status_tag)
@@ -1226,7 +1285,7 @@ func _update_atlas_selection() -> void:
 	# Evolution
 	var evo_str: String = item.get("evolution", "")
 	if not evo_str.is_empty():
-		var evo_lbl := UI.label("🧬 PROGRESSION: %s" % evo_str, 15, Color("80deea"))
+		var evo_lbl := UI.label("◆ PROGRESSION: %s" % evo_str, 15, Color("80deea"))
 		evo_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
 		moves_vbox.add_child(evo_lbl)
 

@@ -1,15 +1,19 @@
 extends Control
 var exploration: Node3D
+var _panel_style: StyleBoxFlat
 
 func _ready() -> void:
 	custom_minimum_size = Vector2(210, 165)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_panel_style = preload("res://scripts/ui/frontier_theme.gd").panel(Color("162b29"))
 
 func _draw() -> void:
 	if exploration == null or exploration.player == null:
 		return
+	if _panel_style == null:
+		_panel_style = preload("res://scripts/ui/frontier_theme.gd").panel(Color("162b29"))
 	var area := Rect2(Vector2(8, 8), size - Vector2(16, 16))
-	draw_style_box(preload("res://scripts/ui/frontier_theme.gd").panel(Color("162b29")), Rect2(Vector2.ZERO, size))
+	draw_style_box(_panel_style, Rect2(Vector2.ZERO, size))
 	var bounds: Rect2 = exploration.homestead.ZONE_BOUNDS[exploration.zone_id]
 	for i in range(1, 4):
 		draw_line(Vector2(area.position.x + area.size.x * i / 4.0, area.position.y), Vector2(area.position.x + area.size.x * i / 4.0, area.end.y), Color("2a433b"))

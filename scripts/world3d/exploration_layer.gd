@@ -1,4 +1,7 @@
 extends Node3D
+const BUILD_VISUAL = preload("res://scripts/world3d/build_visual.gd")
+const RESOURCE_VISUAL = preload("res://scripts/world3d/resource_visual.gd")
+
 var zone_id: String = "route_01_3d"
 var zone: Node3D
 var player: Node3D
@@ -22,11 +25,17 @@ var _nearest_structure: Dictionary = {}
 var _rest_cooldown: float = 0.0
 var _encounter_grace_remaining: float = 8.0
 var _mobile_build: bool = false
+var _mouse_build_active: bool = false
 var _build_direction := Vector2.ZERO
 var _build_cursor := Vector3.ZERO
 var _build_previous_movement: bool = true
 var _placement_cooldown: float = 0.0
 var _undo_remaining: float = 0.0
+var _last_preview_target := Vector3(INF, INF, INF)
+var _last_preview_rot: float = INF
+var _last_preview_player := Vector3(INF, INF, INF)
+var _placement_box: BoxShape3D = BoxShape3D.new()
+var _placement_query: PhysicsShapeQueryParameters3D = PhysicsShapeQueryParameters3D.new()
 var chapter: Node3D
 
 func _ready() -> void:
@@ -82,7 +91,9 @@ func _process(delta: float) -> void:
 			offset.y = 0.0
 			if offset.length() > 11.0:
 				_build_cursor = player.global_position + offset.normalized() * 11.0
-		_update_preview()
+		elif _mouse_build_active and not Input.get_vector("move_left", "move_right", "move_forward", "move_back").is_zero_approx():
+			_mouse_build_active = false
+		_update_preview_if_needed()
 	if _tick_time >= 0.15:
 		_tick_time = 0
 		_update_resources()
@@ -95,20 +106,69 @@ func _process(delta: float) -> void:
 		network.publish_presence(player.global_position,player.get_visual_heading() if player.has_method("get_visual_heading") else player.rotation.y,zone_id)
 		_sync_avatars(network.get_snapshot())
 
+func _update_mouse_build_cursor(screen_pos: Vector2) -> void:
+	if not is_instance_valid(player):
+		return
+	var cam: Camera3D = get_viewport().get_camera_3d()
+	if cam == null:
+		return
+	var ray_origin: Vector3 = cam.project_ray_origin(screen_pos)
+	var ray_dir: Vector3 = cam.project_ray_normal(screen_pos)
+	var ground_plane := Plane(Vector3.UP, player.global_position.y)
+	var hit: Variant = ground_plane.intersects_ray(ray_origin, ray_dir)
+	if hit is Vector3:
+		var pt: Vector3 = hit as Vector3
+		var offset: Vector3 = pt - player.global_position
+		offset.y = 0.0
+		if offset.length() > 11.0:
+			pt = player.global_position + offset.normalized() * 11.0
+		_build_cursor = pt
+		_mouse_build_active = true
+
 func _input(event: InputEvent) -> void:
+	if not build_recipe.is_empty() and not _mobile_build:
+		if event is InputEventMouseMotion:
+			_update_mouse_build_cursor((event as InputEventMouseMotion).position)
+			_update_preview_if_needed()
+			return
+		elif event is InputEventMouseButton and event.pressed:
+			var mb := event as InputEventMouseButton
+			var hovered: Control = get_viewport().gui_get_hovered_control()
+			if hovered is BaseButton:
+				return
+			if mb.button_index == MOUSE_BUTTON_LEFT:
+				_update_mouse_build_cursor(mb.position)
+				place_build()
+				get_viewport().set_input_as_handled()
+				return
+			elif mb.button_index == MOUSE_BUTTON_RIGHT:
+				cancel_build()
+				get_viewport().set_input_as_handled()
+				return
+			elif mb.button_index == MOUSE_BUTTON_WHEEL_UP:
+				build_rotation += PI / 2.0
+				_update_preview()
+				get_viewport().set_input_as_handled()
+				return
+			elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+				build_rotation -= PI / 2.0
+				_update_preview()
+				get_viewport().set_input_as_handled()
+				return
 	if not event is InputEventKey or not event.pressed or event.echo:
 		return
 	if not build_recipe.is_empty():
 		if event.keycode == KEY_ESCAPE:
 			cancel_build()
-		elif event.keycode == KEY_T:
+		elif event.keycode in [KEY_T, KEY_R]:
 			build_rotation += PI/2
-		elif event.keycode == KEY_ENTER:
+			_update_preview()
+		elif event.keycode in [KEY_ENTER, KEY_KP_ENTER, KEY_E]:
 			place_build()
 		elif event.keycode == KEY_C:
 			cancel_build()
 			hud.open_camp()
-		elif event.keycode in [KEY_R, KEY_F, KEY_E, KEY_Q, KEY_B, KEY_M]:
+		elif event.keycode in [KEY_F, KEY_Q, KEY_B, KEY_M]:
 			hud.toast("Finish placement or press Escape before another action.")
 		else:
 			return
@@ -200,10 +260,9 @@ func _spawn_resources() -> void:
 		positions = [Vector3(-22,0,4),Vector3(-18,0,8),Vector3(-21,0,-8),Vector3(-15,0,-14),Vector3(-12,0,13),Vector3(-9,0,-11),Vector3(-8,0,17),Vector3(11,0,14),Vector3(16,0,12),Vector3(21,0,12),Vector3(24,0,-14),Vector3(11,0,-14),Vector3(15,0,18),Vector3(-20,0,16),Vector3(26,0,16),Vector3(26,0,-17)]
 	elif zone_id == "sanctuary_town":
 		positions = [Vector3(-15,0,16),Vector3(-11,0,17),Vector3(-6,0,18),Vector3(0,0,18),Vector3(6,0,18),Vector3(12,0,18),Vector3(17,0,16),Vector3(-17,0,-18)]
-	var visuals = load("res://scripts/world3d/resource_visual.gd")
 	for i in range(positions.size()):
 		var resource_id: String = ["wood","stone","fiber","crystals"][i%4]
-		var visual: Node3D = visuals.create(resource_id)
+		var visual: Node3D = RESOURCE_VISUAL.create(resource_id)
 		visual.position = positions[i]
 		add_child(visual)
 		var entry: Dictionary = {"id":"%s:%s:%d" % [zone_id,resource_id,i],"resource":resource_id,"amount":{"wood":6,"stone":4,"fiber":5,"crystals":2}[resource_id],"position":positions[i],"visual":visual}
@@ -217,7 +276,7 @@ func _update_prompt() -> void:
 	_nearest_resource = {}
 	_nearest_structure = {}
 	if blocks_legacy_input():
-		hud.tick("ENTER Place  ·  T Rotate  ·  " + build_message if not build_recipe.is_empty() else "")
+		hud.tick("ENTER / Click / E Place  ·  R / T / Wheel Rotate  ·  " + build_message if not build_recipe.is_empty() else "")
 		return
 	if not player.movement_enabled:
 		hud.tick("")
@@ -286,24 +345,29 @@ func start_build(recipe_id: String) -> void:
 	build_rotation = (player.get_visual_heading() if player.has_method("get_visual_heading") else player.rotation.y) + PI
 	var controls := get_node_or_null("/root/MobileControls")
 	_mobile_build = controls != null and bool(controls.get("enabled"))
+	_mouse_build_active = false
 	_build_previous_movement = player.movement_enabled
 	var heading: float = player.get_visual_heading() if player.has_method("get_visual_heading") else player.rotation.y
 	_build_cursor = player.global_position + Vector3(-sin(heading), 0, -cos(heading)) * (float(homestead.get_recipe(recipe_id)["radius"]) + 2.0)
 	if _mobile_build:
 		player.movement_enabled = false
 		player.velocity = Vector3.ZERO
-	ghost = load("res://scripts/world3d/build_visual.gd").create(recipe_id,true)
+	ghost = BUILD_VISUAL.create(recipe_id,true)
 	add_child(ghost)
-	hud.toast("Move the placement pad to position your %s. Rotate, then Place." % homestead.get_recipe(recipe_id)["label"] if _mobile_build else "Move to position your %s. T rotates. ENTER places it. ESC cancels." % homestead.get_recipe(recipe_id)["label"],6)
+	hud.toast("Move the placement pad to position your %s. Rotate, then Place." % homestead.get_recipe(recipe_id)["label"] if _mobile_build else "Aim with Mouse or WASD to position your %s. R/T/Wheel rotates. Click/Enter/E places. Right-Click/ESC cancels." % homestead.get_recipe(recipe_id)["label"],6)
 	_update_preview()
 
 func cancel_build() -> void:
 	if _mobile_build and is_instance_valid(player):
 		player.movement_enabled = _build_previous_movement
 	_mobile_build = false
+	_mouse_build_active = false
 	_build_direction = Vector2.ZERO
 	build_recipe = ""
 	build_valid = false
+	_last_preview_target = Vector3(INF, INF, INF)
+	_last_preview_rot = INF
+	_last_preview_player = Vector3(INF, INF, INF)
 	if is_instance_valid(ghost):
 		ghost.queue_free()
 	ghost = null
@@ -327,16 +391,29 @@ func undo_last_build() -> Dictionary:
 	hud.toast(result["message"])
 	return result
 
-func _update_preview() -> void:
-	if ghost == null:
-		return
+func _compute_candidate_target() -> Vector3:
 	var heading: float = player.get_visual_heading() if player.has_method("get_visual_heading") else player.rotation.y
 	var radius: float = homestead.get_recipe(build_recipe)["radius"]
 	var front := Vector3(-sin(heading),0,-cos(heading))
-	build_target = _build_cursor if _mobile_build else player.global_position + front * (radius + 2.0)
-	build_target.x = snappedf(build_target.x,0.5)
-	build_target.z = snappedf(build_target.z,0.5)
-	build_target.y = 0.02
+	var raw_target: Vector3 = _build_cursor if (_mobile_build or _mouse_build_active) else player.global_position + front * (radius + 2.0)
+	return Vector3(snappedf(raw_target.x, 0.5), 0.02, snappedf(raw_target.z, 0.5))
+
+func _update_preview_if_needed() -> void:
+	if ghost == null or build_recipe.is_empty():
+		return
+	var candidate := _compute_candidate_target()
+	if candidate.is_equal_approx(_last_preview_target) and is_equal_approx(build_rotation, _last_preview_rot) and player.global_position.distance_squared_to(_last_preview_player) < 0.0025:
+		return
+	_update_preview()
+
+func _update_preview() -> void:
+	if ghost == null:
+		return
+	var radius: float = homestead.get_recipe(build_recipe)["radius"]
+	build_target = _compute_candidate_target()
+	_last_preview_target = build_target
+	_last_preview_rot = build_rotation
+	_last_preview_player = player.global_position
 	var query := PhysicsRayQueryParameters3D.create(build_target+Vector3.UP*6,build_target-Vector3.UP)
 	query.exclude = [player.get_rid()]
 	var hit: Dictionary = get_world_3d().direct_space_state.intersect_ray(query)
@@ -351,28 +428,28 @@ func _update_preview() -> void:
 	build_message = status["message"]
 	ghost.global_position = build_target
 	ghost.rotation.y = build_rotation
-	load("res://scripts/world3d/build_visual.gd").set_preview_color(ghost,build_valid)
+	BUILD_VISUAL.set_preview_color(ghost,build_valid)
 
 func placement_blocked(position: Vector3, radius: float) -> bool:
 	if Vector2(position.x - player.global_position.x, position.z - player.global_position.z).length() < radius + 0.5:
 		return true
 	# Validate support across the footprint, not just under its centre.
+	var space := get_world_3d().direct_space_state
+	var player_rid: RID = player.get_rid()
 	for corner: Vector2 in [Vector2(-1, -1), Vector2(-1, 1), Vector2(1, -1), Vector2(1, 1)]:
 		var at := position + Vector3(corner.x, 0, corner.y) * radius * 0.65
 		var ground_query := PhysicsRayQueryParameters3D.create(at + Vector3.UP * 2.0, at - Vector3.UP * 1.0)
-		ground_query.exclude = [player.get_rid()]
-		var support: Dictionary = get_world_3d().direct_space_state.intersect_ray(ground_query)
+		ground_query.exclude = [player_rid]
+		var support: Dictionary = space.intersect_ray(ground_query)
 		if support.is_empty() or support["normal"].y < 0.95 or absf(support["position"].y - (position.y - 0.02)) > 0.2:
 			return true
-	var box := BoxShape3D.new()
-	box.size = Vector3(radius*1.5,2.3,radius*1.5)
-	var query := PhysicsShapeQueryParameters3D.new()
-	query.shape = box
-	query.transform = Transform3D(Basis(Vector3.UP,build_rotation),position+Vector3.UP*1.35)
-	query.exclude = [player.get_rid()]
-	query.collide_with_bodies = true
-	query.collide_with_areas = true
-	var hits: Array[Dictionary] = get_world_3d().direct_space_state.intersect_shape(query,32)
+	_placement_box.size = Vector3(radius*1.5,2.3,radius*1.5)
+	_placement_query.shape = _placement_box
+	_placement_query.transform = Transform3D(Basis(Vector3.UP,build_rotation),position+Vector3.UP*1.35)
+	_placement_query.exclude = [player_rid]
+	_placement_query.collide_with_bodies = true
+	_placement_query.collide_with_areas = true
+	var hits: Array[Dictionary] = space.intersect_shape(_placement_query,32)
 	for hit: Dictionary in hits:
 		var collider = hit["collider"]
 		if collider is Area3D and not collider is HazardVolume3D:
@@ -416,7 +493,7 @@ func _on_structure_placed(structure: Dictionary) -> void:
 		_spawn_structure(structure)
 
 func _spawn_structure(structure: Dictionary) -> void:
-	var visual: Node3D = load("res://scripts/world3d/build_visual.gd").create(structure["recipe_id"])
+	var visual: Node3D = BUILD_VISUAL.create(structure["recipe_id"])
 	var pos: Dictionary = structure["position"]
 	visual.position = Vector3(pos["x"],pos["y"],pos["z"])
 	visual.rotation.y = structure["rotation_y"]

@@ -1,6 +1,8 @@
 class_name CreatureInstance
 extends RefCounted
 
+const MAX_NICKNAME_LENGTH: int = 18
+
 var instance_id: String = ""
 var species: CreatureSpecies
 var nickname: String = ""
@@ -121,7 +123,7 @@ static func from_save_dict(data: Dictionary, species_lookup: Dictionary, move_lo
 	var creature = CreatureInstance.new()
 	creature.species = species_lookup[species_id] as CreatureSpecies
 	creature.instance_id = str(data.get("instance_id", "CR_%06d" % (randi() % 900000 + 100000)))
-	creature.nickname = str(data.get("nickname", ""))
+	creature.set_nickname(str(data.get("nickname", "")))
 	creature.is_favorite = bool(data.get("is_favorite", false))
 	creature.bond_location = str(data.get("bond_location", "Route 01"))
 	creature.bond_timestamp = int(data.get("bond_timestamp", 0))
@@ -202,12 +204,32 @@ func is_fear_immune() -> bool:
 func is_conscious() -> bool:
 	return current_vitality > 0
 
+func set_nickname(raw_name: String) -> String:
+	var cleaned := raw_name.replace("\n", " ").replace("\r", " ").replace("\t", " ").strip_edges()
+	while cleaned.contains("  "):
+		cleaned = cleaned.replace("  ", " ")
+	if cleaned.length() > MAX_NICKNAME_LENGTH:
+		cleaned = cleaned.left(MAX_NICKNAME_LENGTH).strip_edges()
+	if cleaned.is_empty() or (species != null and cleaned.to_lower() == species.display_name.to_lower()):
+		nickname = ""
+	else:
+		nickname = cleaned
+	return display_name()
+
+func has_custom_nickname() -> bool:
+	return not nickname.strip_edges().is_empty() and (species == null or nickname.strip_edges().to_lower() != species.display_name.to_lower())
+
 func display_name() -> String:
 	if not nickname.is_empty():
 		return nickname
 	if species != null:
 		return species.display_name
 	return "Unknown Creature"
+
+func display_name_with_species() -> String:
+	if has_custom_nickname() and species != null:
+		return "%s (%s)" % [nickname, species.display_name]
+	return display_name()
 
 func heal_full() -> void:
 	current_vitality = max_vitality()

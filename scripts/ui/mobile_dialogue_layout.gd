@@ -39,10 +39,12 @@ func _layout() -> void:
 		if touch:
 			_box.add_child(_scroll)
 			_box.move_child(_scroll, _original_index)
-			text_label.reparent(_scroll)
+			text_label.reparent(_scroll, false)
+			text_label.position = Vector2.ZERO
 			text_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		else:
-			text_label.reparent(_box)
+			text_label.reparent(_box, false)
+			text_label.position = Vector2.ZERO
 			_box.move_child(text_label, _original_index)
 			_box.remove_child(_scroll)
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE if touch else Control.MOUSE_FILTER_STOP

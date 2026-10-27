@@ -11,6 +11,10 @@ var _refresh_timer: float = 0.0
 var _idle_time: float = 0.0
 var _residents: Array[Dictionary] = []
 
+func _ready() -> void:
+	if HomesteadManager != null and not HomesteadManager.changed.is_connected(refresh_residents):
+		HomesteadManager.changed.connect(refresh_residents)
+
 func configure(zone_id: String) -> void:
 	_zone_id = zone_id
 	_fingerprint = ""
@@ -19,7 +23,7 @@ func configure(zone_id: String) -> void:
 func _process(delta: float) -> void:
 	_refresh_timer += delta
 	_idle_time += delta
-	if _refresh_timer >= 1.0:
+	if _refresh_timer >= 4.0:
 		_refresh_timer = 0.0
 		refresh_residents()
 	for resident: Dictionary in _residents:
@@ -37,16 +41,19 @@ func refresh_residents() -> void:
 	if not is_inside_tree():
 		return
 	var shelters: Array[Dictionary] = []
+	var sig_parts: PackedStringArray = []
 	for structure: Dictionary in HomesteadManager.get_structures_for_zone(_zone_id):
 		if structure["recipe_id"] == "creature_shelter":
 			shelters.append(structure)
+			var p: Dictionary = structure["position"]
+			sig_parts.append("%s:%.1f,%.1f,%.2f" % [structure["id"], float(p["x"]), float(p["z"]), float(structure["rotation_y"])])
 	var companions: Array[CreatureInstance] = []
 	companions.append_array(PartyManager.reserve_storage)
 	companions.append_array(PartyManager.party)
-	var signature: String = JSON.stringify(shelters)
 	for creature: CreatureInstance in companions:
 		if creature != null and creature.species != null:
-			signature += "|%s:%s" % [creature.get_instance_id(), creature.species.species_id]
+			sig_parts.append("%d:%s" % [creature.get_instance_id(), creature.species.species_id])
+	var signature: String = "|".join(sig_parts)
 	if signature == _fingerprint:
 		return
 	_fingerprint = signature
@@ -79,6 +86,9 @@ func refresh_residents() -> void:
 		actor.collision_layer = 0
 		actor.collision_mask = 0
 		add_child(actor)
+		for child in actor.get_children():
+			if child is CollisionShape3D:
+				child.disabled = true
 		# Reuse the creature mesh only; its wild AI must never run here.
 		actor.set_physics_process(false)
 		actor.set_process(false)

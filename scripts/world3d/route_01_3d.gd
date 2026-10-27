@@ -647,14 +647,14 @@ func _build_hud() -> void:
 
 	# Buttons
 	backpack_btn = Button.new()
-	backpack_btn.text = "🎒 [B/Q] BACKPACK"
+	backpack_btn.text = "[B/Q] BACKPACK"
 	backpack_btn.position = Vector2(1580, 20)
 	backpack_btn.size = Vector2(165, 38)
 	backpack_btn.pressed.connect(toggle_backpack)
 	hud.add_child(backpack_btn)
 
 	system_menu_btn = Button.new()
-	system_menu_btn.text = "⚙️ [ESC] MENU"
+	system_menu_btn.text = "[ESC] MENU"
 	system_menu_btn.position = Vector2(1760, 20)
 	system_menu_btn.size = Vector2(140, 38)
 	system_menu_btn.pressed.connect(toggle_system_menu)

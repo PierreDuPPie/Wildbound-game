@@ -2,6 +2,10 @@ extends RefCounted
 ## Procedural homestead kit: human-sized entrances, clear interiors and real walls.
 ## Front faces local -Z; every model's origin sits on the ground.
 
+static var _cached_palette: Dictionary = {}
+static var _mesh_cache: Dictionary = {}
+static var _shape_cache: Dictionary = {}
+
 static func create(recipe_id: String, ghost: bool = false) -> Node3D:
 	var root := Node3D.new()
 	root.name = recipe_id.to_pascal_case()
@@ -42,20 +46,23 @@ static func _recolor(node: Node, material: StandardMaterial3D) -> void:
 		_recolor(child, material)
 
 static func _palette() -> Dictionary:
-	return {
-		"clay": _material(Color("#b98459")),
-		"plaster": _material(Color("#dfc79d")),
-		"timber": _material(Color("#785334")),
-		"dark": _material(Color("#41372d")),
-		"thatch": _material(Color("#b4975b")),
-		"roof": _material(Color("#466052")),
-		"stone": _material(Color("#73756e")),
-		"canvas": _material(Color("#ebe0c2")),
-		"blanket": _material(Color("#a65139")),
-		"metal": _material(Color("#343e3c")),
-		"glass": _material(Color(0.6, 0.83, 0.8, 0.28), true),
-		"glow": _material(Color("#ffcf77"), false, 1.8)
-	}
+	if _cached_palette.is_empty():
+		_cached_palette = {
+			"clay": _material(Color("#b98459")),
+			"plaster": _material(Color("#dfc79d")),
+			"timber": _material(Color("#785334")),
+			"dark": _material(Color("#41372d")),
+			"thatch": _material(Color("#b4975b")),
+			"roof": _material(Color("#466052")),
+			"stone": _material(Color("#73756e")),
+			"canvas": _material(Color("#ebe0c2")),
+			"blanket": _material(Color("#a65139")),
+			"metal": _material(Color("#343e3c")),
+			"glass": _material(Color(0.6, 0.83, 0.8, 0.28), true),
+			"glow": _material(Color("#ffcf77"), false, 1.8),
+			"invisible": _material(Color(0, 0, 0, 0), true)
+		}
+	return _cached_palette
 
 static func _material(color: Color, transparent: bool = false, glow: float = 0.0) -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
@@ -69,53 +76,93 @@ static func _material(color: Color, transparent: bool = false, glow: float = 0.0
 		material.emission_energy_multiplier = glow
 	return material
 
+static func _ensure_body(root: Node3D) -> StaticBody3D:
+	var body := root.get_node_or_null("CollisionBody") as StaticBody3D
+	if body == null:
+		body = StaticBody3D.new()
+		body.name = "CollisionBody"
+		root.add_child(body)
+	return body
+
+static func _should_use_point_lights() -> bool:
+	if OS.has_feature("android") or OS.has_feature("ios") or OS.has_feature("web") or OS.has_feature("mobile"):
+		return false
+	if RenderingServer.get_current_rendering_method() == "gl_compatibility":
+		return false
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree != null and tree.root != null:
+		var mobile := tree.root.get_node_or_null("MobileControls")
+		if mobile != null and bool(mobile.get("enabled")):
+			return false
+		var settings := tree.root.get_node_or_null("MobileSettings")
+		if settings != null and settings.has_method("effective_quality"):
+			var q: String = str(settings.call("effective_quality"))
+			if q in ["low", "medium"]:
+				return false
+	return true
+
 static func _box(root: Node3D, label: String, size: Vector3, position: Vector3, material: Material, solid: bool = false, rotation: Vector3 = Vector3.ZERO) -> MeshInstance3D:
-	var mesh := BoxMesh.new()
-	mesh.size = size
+	var mesh_key := "box:%.3f,%.3f,%.3f" % [size.x, size.y, size.z]
+	var mesh: BoxMesh = _mesh_cache.get(mesh_key)
+	if mesh == null:
+		mesh = BoxMesh.new()
+		mesh.size = size
+		_mesh_cache[mesh_key] = mesh
 	var part := MeshInstance3D.new()
 	part.name = label
 	part.mesh = mesh
 	part.position = position
 	part.rotation = rotation
 	part.material_override = material
+	part.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if (solid or label in ["RoofSlope", "Porch", "OpenDoor"]) else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(part)
 	if solid:
-		var body := StaticBody3D.new()
-		body.name = label + "Collision"
-		body.position = position
-		body.rotation = rotation
+		var body := _ensure_body(root)
 		var collision := CollisionShape3D.new()
-		var shape := BoxShape3D.new()
-		shape.size = size
+		collision.name = label + "Collision"
+		collision.position = position
+		collision.rotation = rotation
+		var shape: BoxShape3D = _shape_cache.get(mesh_key)
+		if shape == null:
+			shape = BoxShape3D.new()
+			shape.size = size
+			_shape_cache[mesh_key] = shape
 		collision.shape = shape
 		body.add_child(collision)
-		root.add_child(body)
 	return part
 
 static func _cylinder(root: Node3D, label: String, top: float, bottom: float, height: float, position: Vector3, material: Material, rotation: Vector3 = Vector3.ZERO, solid: bool = false) -> MeshInstance3D:
-	var mesh := CylinderMesh.new()
-	mesh.top_radius = top
-	mesh.bottom_radius = bottom
-	mesh.height = height
-	mesh.radial_segments = 8
+	var mesh_key := "cyl:%.3f,%.3f,%.3f" % [top, bottom, height]
+	var mesh: CylinderMesh = _mesh_cache.get(mesh_key)
+	if mesh == null:
+		mesh = CylinderMesh.new()
+		mesh.top_radius = top
+		mesh.bottom_radius = bottom
+		mesh.height = height
+		mesh.radial_segments = 8
+		_mesh_cache[mesh_key] = mesh
 	var part := MeshInstance3D.new()
 	part.name = label
 	part.mesh = mesh
 	part.position = position
 	part.rotation = rotation
 	part.material_override = material
+	part.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if solid else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(part)
 	if solid:
-		var body := StaticBody3D.new()
-		body.position = position
-		body.rotation = rotation
+		var body := _ensure_body(root)
 		var collision := CollisionShape3D.new()
-		var shape := CylinderShape3D.new()
-		shape.radius = maxf(top, bottom)
-		shape.height = height
+		collision.position = position
+		collision.rotation = rotation
+		var shape_key := "cyls:%.3f,%.3f" % [maxf(top, bottom), height]
+		var shape: CylinderShape3D = _shape_cache.get(shape_key)
+		if shape == null:
+			shape = CylinderShape3D.new()
+			shape.radius = maxf(top, bottom)
+			shape.height = height
+			_shape_cache[shape_key] = shape
 		collision.shape = shape
 		body.add_child(collision)
-		root.add_child(body)
 	return part
 
 static func _marker(root: Node3D, label: String, position: Vector3) -> void:
@@ -214,13 +261,17 @@ static func _lantern(root: Node3D, p: Dictionary, at: Vector3, ghost: bool) -> v
 	for x: float in [-0.1, 0.1]:
 		for z: float in [-0.1, 0.1]:
 			_box(root, "LanternFrame", Vector3(0.025, 0.3, 0.025), at + Vector3(x, 0, z), p["metal"])
-	if not ghost:
+	if not ghost and _should_use_point_lights():
 		var light := OmniLight3D.new()
 		light.name = "LanternLight"
 		light.position = at
 		light.light_color = Color("#ffcd83")
 		light.light_energy = 0.7
 		light.omni_range = 3.8
+		light.shadow_enabled = false
+		light.distance_fade_enabled = true
+		light.distance_fade_begin = 14.0
+		light.distance_fade_length = 4.0
 		root.add_child(light)
 
 static func _stable(root: Node3D, p: Dictionary, ghost: bool) -> void:
@@ -234,7 +285,7 @@ static func _stable(root: Node3D, p: Dictionary, ghost: bool) -> void:
 			_box(root, "StablePost", Vector3(0.18, h, 0.18), Vector3(side * w * 0.5, h * 0.5, z), p["dark"], not ghost)
 		for y: float in [0.5, 1.0, 1.5]:
 			_box(root, "StableRail", Vector3(0.11, 0.1, d), Vector3(side * w * 0.5, y, 0), p["timber"])
-		_box(root, "StableSideBarrier", Vector3(0.10, 1.6, d), Vector3(side * w * 0.5, 0.8, 0), _material(Color(0, 0, 0, 0), true), not ghost)
+		_box(root, "StableSideBarrier", Vector3(0.10, 1.6, d), Vector3(side * w * 0.5, 0.8, 0), p["invisible"], not ghost)
 		_box(root, "HayBale", Vector3(0.8, 0.55, 0.65), Vector3(side * 1.6, 0.3, 1.15), p["thatch"], not ghost)
 		for offset: float in [-0.22, 0.22]:
 			_box(root, "HayBinding", Vector3(0.04, 0.57, 0.68), Vector3(side * 1.6 + offset, 0.3, 1.15), p["dark"])
@@ -296,13 +347,17 @@ static func _campfire(root: Node3D, p: Dictionary, ghost: bool) -> void:
 		var angle: float = index * TAU / 3.0
 		_cylinder(root, "FlameTongue", 0.0, 0.10, 0.50, Vector3(cos(angle) * 0.16, 0.42, sin(angle) * 0.16), p["glow"], Vector3(0.15 * cos(angle), 0, 0.15 * sin(angle)))
 	_box(root, "CampSeat", Vector3(1.5, 0.24, 0.34), Vector3(0, 0.22, 1.08), p["timber"], not ghost)
-	if not ghost:
+	if not ghost and _should_use_point_lights():
 		var light := OmniLight3D.new()
 		light.name = "CampfireLight"
 		light.position = Vector3(0, 0.7, 0)
 		light.light_color = Color("#ffad61")
 		light.light_energy = 1.2
 		light.omni_range = 4.5
+		light.shadow_enabled = false
+		light.distance_fade_enabled = true
+		light.distance_fade_begin = 14.0
+		light.distance_fade_length = 4.0
 		root.add_child(light)
 	_marker(root, "RestPoint", Vector3(0, 0, -1.1))
 
