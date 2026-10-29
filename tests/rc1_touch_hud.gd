@@ -103,7 +103,7 @@ func _run() -> void:
 	await frames(5)
 	MobileControls.set_application_suspended(false)
 	await frames()
-	check(get_tree().paused and MobileControls._orientation_blocked, "Resume while portrait retains the orientation pause")
+	check(not get_tree().paused and MobileControls.context == "explore", "Resume while portrait restores playable controls")
 	get_window().size = Vector2i(844, 390)
 	await frames(6)
 	check(not get_tree().paused and MobileControls.context == "explore", "Landscape resumes after all owned pause reasons clear")

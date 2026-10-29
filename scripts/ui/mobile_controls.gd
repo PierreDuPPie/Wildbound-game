@@ -28,9 +28,7 @@ var _context_signature: String = ""
 var _original_mouse_emulation: bool = false
 var _sprinting: bool = false
 var _movement_deadzones: Dictionary = {}
-var _orientation_blocked: bool = false
 var _previous_pause: bool = false
-var _rotation_notice: Control
 var _pause_reasons: Dictionary = {}
 var _application_suspended: bool = false
 
@@ -39,7 +37,7 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	get_tree().quit_on_go_back = false
 	if OS.has_feature("android") or OS.has_feature("ios"):
-		DisplayServer.screen_set_orientation(DisplayServer.SCREEN_LANDSCAPE)
+		DisplayServer.screen_set_orientation(DisplayServer.SCREEN_SENSOR)
 	_original_scale_size = get_window().content_scale_size
 	_original_aspect = get_window().content_scale_aspect
 	_original_mouse_emulation = Input.emulate_mouse_from_touch
@@ -56,7 +54,6 @@ func _ready() -> void:
 		action_margin_y = clampf(float(config.get_value("controls", "action_margin_y", 12.0)), 0.0, 200.0)
 	if _preview: mode = "touch"
 	_build_controls()
-	_build_rotation_notice()
 	_apply_mode()
 	get_viewport().size_changed.connect(_reflow)
 	get_tree().root.focus_exited.connect(release_all)
@@ -242,43 +239,11 @@ func _mobile_scale_size() -> Vector2i:
 	# Keep touch targets the same physical size when a phone rotates.
 	return Vector2i(540, 960) if get_window().size.x < get_window().size.y else Vector2i(960, 540)
 
-func _build_rotation_notice() -> void:
-	_rotation_notice = Control.new()
-	_rotation_notice.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_rotation_notice.mouse_filter = Control.MOUSE_FILTER_STOP
-	add_child(_rotation_notice)
-	var background := ColorRect.new()
-	background.color = Color("172d27")
-	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_rotation_notice.add_child(background)
-	var center := CenterContainer.new()
-	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_rotation_notice.add_child(center)
-	var text := Label.new()
-	text.text = "Rotate your phone\n\nWildbound plays in landscape.\nTurn sideways to continue."
-	text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	text.add_theme_font_size_override("font_size", 28)
-	text.add_theme_color_override("font_color", Color("f1eedf"))
-	center.add_child(text)
-	_rotation_notice.hide()
-
-func _update_orientation_gate() -> bool:
-	var portrait := (enabled or OS.has_feature("web") or OS.has_feature("android") or OS.has_feature("ios")) and is_instance_valid(_bootstrap) and get_window().size.x <= get_window().size.y
-	if OS.has_feature("web") and is_instance_valid(_bootstrap):
-		portrait = bool(JavaScriptBridge.eval("window.wildbound && window.wildbound.orientationBlocked === true"))
-	if portrait != _orientation_blocked:
-		_orientation_blocked = portrait
-		_set_pause_reason("orientation", portrait)
-		if OS.has_feature("web"):
-			JavaScriptBridge.eval("document.getElementById('canvas').dataset.gamePaused = '%s'" % str(get_tree().paused))
-	# Browser chrome supplies the notice before the engine starts as well.
-	_rotation_notice.visible = portrait and not OS.has_feature("web")
-	return portrait
-
 func _position_actions() -> void:
 	if not is_instance_valid(action_bar): return
-	action_bar.size = action_bar.get_combined_minimum_size()
 	var rect := safe_rect()
+	action_bar.columns = 2 if rect.size.x < 700 else 3
+	action_bar.size = action_bar.get_combined_minimum_size()
 	var pos_x := rect.end.x - action_bar.size.x - action_margin_x
 	var pos_y := rect.end.y - action_bar.size.y - action_margin_y
 	pos_x = clampf(pos_x, rect.position.x, rect.end.x - action_bar.size.x)
@@ -286,7 +251,7 @@ func _position_actions() -> void:
 	action_bar.position = Vector2(pos_x, pos_y)
 
 func _process(_delta: float) -> void:
-	if _update_orientation_gate() or _application_suspended:
+	if _application_suspended:
 		_set_context("", null)
 		return
 	if not enabled or not is_instance_valid(_bootstrap) or not is_instance_valid(_bootstrap.active_scene):
@@ -467,7 +432,7 @@ func set_application_suspended(suspended: bool) -> void:
 	if not suspended: refresh_context()
 
 func handle_back() -> bool:
-	if _orientation_blocked or _application_suspended: return true
+	if _application_suspended: return true
 	var exploration := _get_exploration()
 	if exploration == null: return true # Battles keep their explicit Run/back commands.
 	release_all()

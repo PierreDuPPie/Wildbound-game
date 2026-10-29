@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#172d27"><title>WILDBOUND - Playtest notes</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#172d27;color:#f1eedf;font:16px/1.65 system-ui,sans-serif}main{max-width:780px;margin:auto;padding:40px 22px 70px}a{color:#dfbd75}header{border-bottom:1px solid #4b6251;padding-bottom:24px}small,.muted{color:#aec1b2}h1{font:normal 44px/1.1 Georgia,serif;margin:12px 0 20px}h2{font:normal 27px Georgia,serif;color:#dfbd75;margin:32px 0 12px}li{margin:8px 0}label{display:block;margin:18px 0 6px;font-weight:600}input,textarea,select{width:100%;border:1px solid #708570;background:#213b30;color:#f1eedf;padding:12px;border-radius:5px;font:inherit}textarea{min-height:120px;resize:vertical}button{background:#dfbd75;color:#172d27;border:0;border-radius:4px;font:700 16px system-ui;min-height:50px;padding:12px 24px;margin-top:24px;cursor:pointer}input:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-visible{outline:3px solid white;outline-offset:3px}.card{padding:18px 22px;border:1px solid #4b6251;border-radius:8px;margin-top:24px}.status{color:#dfbd75;min-height:26px}kbd{font:inherit;background:#355344;padding:1px 6px;border-radius:3px}
+</style>
+<main>
+<header><small>WILDBOUND / FIRST EXPEDITION / PLAYTEST 0.6.1</small><h1>A little adventure.<br>Your honest feedback.</h1><p>Try the expedition at your own pace. Tell Pierre where you had fun, where you felt lost, and anything that stopped you playing.</p><a href="./">Return to the game</a></header>
+<h2>Things to try</h2>
+<ol><li>Speak to Ranger Dan at Acacia Outpost and follow the objective.</li><li>Explore Route 01. Weaken a wild creature in battle, then choose Wildbond.</li><li>Follow the story into Riverine Woodland. Try a companion ability with G or the Abilities menu.</li><li>Gather materials and build a Creature Shelter at the outpost using Camp.</li><li>Care for your companions, investigate the mystery, and check Pack &gt; Field Notes.</li><li>Save, close the tab, and return in the same browser. Check your companions and buildings are still there.</li></ol>
+<div class="card"><strong>Useful shortcuts</strong><p>WASD move; Shift sprint; Space jump; E interact; C camp; Q pack; G abilities; X Atlas; Escape menu. With the equipment and a conscious companion, R rides and F requests flight or landing. On phones, play upright or sideways with the on-screen controls.</p><small>This is a single-player alpha. Phone performance and balance still need real player feedback. Saves stay on this browser and device.</small></div>
+<h2>Your field report</h2><p class="muted">Notes stay on this page until you download them. Nothing is sent automatically. Send the downloaded file to Pierre when you're ready.</p>
+<form id="report">
+<label for="device">Device and browser</label><input id="device" placeholder="For example: Samsung A54, Chrome / Linux PC, Firefox" maxlength="180">
+<label for="duration">Approximate time played</label><input id="duration" placeholder="For example: 20 minutes" maxlength="60">
+<label for="fun">How much fun was it?</label><select id="fun"><option value="Not rated">Choose a rating</option><option>1 - Couldn't get into it</option><option>2 - A few good moments</option><option>3 - Enjoyed parts of it</option><option>4 - Would play again</option><option>5 - Wanted to keep going</option></select>
+<label for="best">Best moment</label><textarea id="best" placeholder="What made you smile, explore, or want to keep playing?" maxlength="4000"></textarea>
+<label for="issue">Problems or confusing moments</label><textarea id="issue" placeholder="Where were you? What did you press? What did you expect? What happened instead? Add a screenshot or recording when you send your notes." maxlength="6000"></textarea>
+<label for="wish">One thing you would improve</label><textarea id="wish" maxlength="4000"></textarea>
+<button type="submit">Download my playtest notes</button><p id="status" class="status" role="status" aria-live="polite"></p>
+</form></main>
+<script>
+let build={version:'0.6.1-playtest',source_commit:'unavailable'};
+fetch('build-info.json').then(r=>r.ok?r.json():null).then(info=>{if(info)build=info;}).catch(()=>{});
+document.getElementById('report').addEventListener('submit',event=>{
+  event.preventDefault();const read=id=>document.getElementById(id).value.trim()||'Not provided';
+  const report=['WILDBOUND FIRST EXPEDITION - PLAYTEST REPORT',`Build: ${build.version}`,`Source: ${build.source_commit}`,`Date: ${new Date().toISOString()}`,`Device/browser: ${read('device')}`,`Time played: ${read('duration')}`,`Fun rating: ${read('fun')}`,'','BEST MOMENT',read('best'),'','PROBLEMS / REPRODUCTION',read('issue'),'','ONE IMPROVEMENT',read('wish'),''].join('\n');
+  const url=URL.createObjectURL(new Blob([report],{type:'text/plain;charset=utf-8'}));const link=document.createElement('a');link.href=url;link.download=`wildbound-playtest-${new Date().toISOString().slice(0,10)}.txt`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  document.getElementById('status').textContent='Notes downloaded. You can now send the file to Pierre.';
+});
+</script></html>

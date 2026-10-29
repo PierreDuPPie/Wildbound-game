@@ -64,8 +64,11 @@ func get_battle_items() -> Array[Dictionary]:
 			result.append(entry)
 	return result
 
-func use_item_on_creature(item_id: StringName, creature: CreatureInstance, in_battle: bool = false) -> Dictionary:
+func use_item_on_creature(item_id: StringName, creature: CreatureInstance, in_battle: bool = false, battle: Node = null) -> Dictionary:
 	var result: Dictionary = {"success": false, "message": ""}
+	if creature == null:
+		result.message = "Choose a creature first."
+		return result
 	var item: ItemData = get_item(item_id)
 	if item == null:
 		result["message"] = "Item not found."
@@ -95,6 +98,9 @@ func use_item_on_creature(item_id: StringName, creature: CreatureInstance, in_ba
 
 
 	if item.clears_status:
+		if creature.status_id == &"none" or creature.status_id.is_empty():
+			result.message = "%s has no status to clear." % creature.display_name()
+			return result
 		creature.status_id = &"none"
 		remove_item(item_id)
 		result["success"] = true
@@ -102,9 +108,12 @@ func use_item_on_creature(item_id: StringName, creature: CreatureInstance, in_ba
 		return result
 
 	if item.buff_stat != &"none" and item.buff_stat != &"":
+		if not in_battle or battle == null or not battle.has_method("apply_item_buff") or not battle.apply_item_buff(creature, item):
+			result.message = "This boost needs an active battle and cannot be applied twice."
+			return result
 		remove_item(item_id)
 		result["success"] = true
-		result["message"] = "%s feels its %s rise! (Not fully implemented)" % [creature.display_name(), item.buff_stat]
+		result["message"] = "%s gains +%d%% %s for this battle." % [creature.display_name(), int(round(item.buff_percent * 100)), String(item.buff_stat).capitalize()]
 		return result
 
 	if item.heal_amount > 0:
@@ -120,16 +129,6 @@ func use_item_on_creature(item_id: StringName, creature: CreatureInstance, in_ba
 		remove_item(item_id)
 		result["success"] = true
 		result["message"] = "%s recovered %d HP!" % [creature.display_name(), healed]
-		return result
-
-	if item.clears_status:
-		if creature.status_id == &"none":
-			result["message"] = "%s has no status to clear." % creature.display_name()
-			return result
-		creature.status_id = &"none"
-		remove_item(item_id)
-		result["success"] = true
-		result["message"] = "%s's status was cleared!" % creature.display_name()
 		return result
 
 	result["message"] = "This item can't be used that way."

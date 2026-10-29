@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="CreatureSpecies" load_steps=9 format=3]
+[gd_resource type="Resource" script_class="CreatureSpecies" load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/creature_species.gd" id="1_species"]
 [ext_resource type="Resource" path="res://data/aspects/earth.tres" id="2_aspect"]
@@ -10,6 +10,8 @@
 [ext_resource type="Resource" path="res://data/moves/primal_roar.tres" id="m_primal_roar"]
 [ext_resource type="Resource" path="res://data/moves/ground_slam.tres" id="m_ground_slam"]
 
+[ext_resource type="Resource" path="res://data/abilities/sentry_scan.tres" id="7_ability"]
+
 [resource]
 script = ExtResource("1_species")
 species_id = &"baboonic"
@@ -20,6 +22,7 @@ rarity = &"common"
 animal_inspiration = "Chacma Baboon (Papio ursinus)"
 habitat_tags = Array[StringName]([&"savannah", &"rocky", &"woodland"])
 temperament_tags = Array[StringName]([&"social", &"protective", &"loud"])
+exploration_ability = ExtResource("7_ability")
 aspects = Array[ExtResource("5_aspect_type")]([ExtResource("2_aspect")])
 instinct = ExtResource("3_instinct")
 base_vitality = 50

@@ -1,10 +1,10 @@
 # Mobile controls and menus
 
-The shared Godot game has contextual touch controls, responsive menus and an Android RC1 debug APK in `builds/WILDBOUND_Mobile_RC1_Debug.apk`. Mobile gameplay is landscape-only. The APK has not been tested on a real phone. See [the RC1 report](MOBILE_IMPLEMENTATION_REPORT.md) for build provenance and evidence.
+The shared Godot game has contextual touch controls, responsive menus and an Android RC1 debug APK in `builds/WILDBOUND_Mobile_RC1_Debug.apk`. Mobile gameplay supports portrait and landscape. The APK has not been tested on a real phone. See [the RC1 report](MOBILE_IMPLEMENTATION_REPORT.md) for build provenance and evidence.
 
 ## Try the controls on this computer
 
-Double-click **Play Wildbound Mobile Preview.cmd** in the parent `wildbound game` folder. Drag the left pad with the mouse and click the action buttons. Resizing to portrait pauses the game and displays a rotate-phone notice; returning to landscape resumes it. This launcher uses the normal game save; the automated tests use separate fixture saves.
+Double-click **Play Wildbound Mobile Preview.cmd** in the parent `wildbound game` folder. Drag the left pad with the mouse and click the action buttons. Resize between portrait and landscape to preview both layouts. Rotation keeps the game playable and releases held touches. This launcher uses the normal game save; the automated tests use separate fixture saves.
 
 The preview forces touch mode for that run without saving the setting. In the regular game, **Menu → Touch Controls** offers **Auto**, **On** and **Off**. Auto enables the controls on Android, iOS or a touchscreen detected by Godot. Selecting a mode in the regular game saves it in `user://interface.cfg`.
 
@@ -32,7 +32,7 @@ In Save & Settings, scroll to adjust joystick deadzone, graphics quality and cam
 
 ## Layout behavior
 
-Landscape play uses a 960 × 540 logical canvas. The canvas expands for different screen shapes, and native mobile builds use Godot's reported safe area. Gameplay controls are at the bottom corners. At the tested 844 × 390 window size, gameplay targets exceed 44 physical pixels and menu targets are at least 64 logical pixels tall. A portrait layout remains available internally for a readable rotate-phone notice, but gameplay and menus are paused behind it.
+Landscape play uses a 960 × 540 logical canvas. The canvas expands for different screen shapes, and native mobile builds use Godot's reported safe area. Gameplay controls are at the bottom corners. At the tested 844 × 390 window size, gameplay targets exceed 44 physical pixels and menu targets are at least 64 logical pixels tall. Portrait play uses a 540 × 960 logical canvas, with an extra-tall viewport on taller phones. Thumb actions use two columns; menus and dossiers stack to fit. Neither orientation pauses gameplay.
 
 Camp, Friends, backpack, reserve, system menu and battle choices adapt to the available width. Long lists and NPC text scroll. Selection and typed Friends fields survive rotation. Close, Resume and confirmation controls remain accessible. The desktop layout and keyboard behavior remain available when touch controls are off.
 
@@ -42,7 +42,7 @@ Tests dispatch real `InputEventScreenTouch` events through the actual Godot cont
 
 | Suite | Headless | Rendered | Scope |
 | --- | --- | --- | --- |
-| Mobile acceptance | 55 passed | 63 passed | Bootstrap, two-finger movement/jump, analog walking, sprint, gather/save round-trip, landscape menus/dialogue, validated building placement, riding, flight, focus cleanup, portrait pause/input blocking and landscape resume |
+| Mobile acceptance | 55 passed | 63 passed | Bootstrap, two-finger movement/jump, analog walking, sprint, gather/save round-trip, landscape menus/dialogue, validated building placement, riding, flight, focus cleanup, portrait play and safe rotation |
 | Mobile menus | 44 passed | 53 passed | Six compact party cards, detail navigation, reserve lists, real swap/item effects, scrolling, rotation and system menu callbacks |
 | Mobile battle | 34 passed | 37 passed | Landscape/portrait command layout, retained battle selection flows and faint choices |
 

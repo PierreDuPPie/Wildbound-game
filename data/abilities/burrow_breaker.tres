@@ -6,7 +6,7 @@
 script = ExtResource("1_burrow")
 ability_id = &"burrow_breaker"
 display_name = "Burrow Breaker"
-description = "Ratelit digs beneath obstructions and shatters cracked boulders."
+description = "Digs beneath obstructions and shatters cracked boulders."
 activation_type = &"target"
 cooldown = 2.0
-prompt_text = "Ratelit: Burrow Breaker"
+prompt_text = "Burrow Breaker"

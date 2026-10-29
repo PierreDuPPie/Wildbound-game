@@ -151,7 +151,7 @@ func _run() -> void:
 		return
 	bootstrap._new_game()
 	await frames(60)
-	check(bootstrap.current_zone == "route_01_3d" and player().is_on_floor() and not player().is_mounted() and not HomesteadManager.has_upgrade("glider_harness"), "Explicit new game clears companions/gear and starts on foot")
+	check(bootstrap.current_zone == "sanctuary_town" and player().is_on_floor() and not player().is_mounted() and not HomesteadManager.has_upgrade("glider_harness") and PartyManager.party.size() == 1 and PartyManager.reserve_storage.is_empty(), "Explicit new game clears companions/gear and starts on foot at the Chapter 1 outpost")
 	_finish()
 
 func _prepare_companions() -> bool:

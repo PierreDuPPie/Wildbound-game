@@ -1,0 +1,61 @@
+name: Verify Wildbound web playtest
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wildbound-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install the matching official Godot engine and web template
+        shell: bash
+        run: |
+          set -euo pipefail
+          release=https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable
+          curl --fail --location --retry 3 "$release/Godot_v4.7.2-stable_linux.x86_64.zip" -o /tmp/godot.zip
+          curl --fail --location --retry 3 "$release/Godot_v4.7.2-stable_export_templates.tpz" -o /tmp/templates.tpz
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          chmod +x /tmp/godot/Godot_v4.7.2-stable_linux.x86_64
+          mkdir -p .tools/web-templates .qa web-dist
+          unzip -p /tmp/templates.tpz templates/web_nothreads_release.zip > .tools/web-templates/web_nothreads_release.zip
+          test -s .tools/web-templates/web_nothreads_release.zip
+      - name: Import and verify the chapter and audit regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot=/tmp/godot/Godot_v4.7.2-stable_linux.x86_64
+          "$godot" --headless --editor --path . --import --quit 2>&1 | tee .qa/ci-import.log
+          for scene in test_runner audit_regression_test first_expedition_test; do
+            timeout 90 "$godot" --headless --path . "res://tests/$scene.tscn" 2>&1 | tee ".qa/ci-$scene.log"
+          done
+          if grep -E 'SCRIPT ERROR:|Parse Error:|Compile Error:|^ERROR:|^FAIL:|\[FAIL\]' .qa/ci-*.log; then exit 1; fi
+      - name: Export and verify web assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          /tmp/godot/Godot_v4.7.2-stable_linux.x86_64 --headless --path . --export-release Web "$PWD/web-dist/index.html" 2>&1 | tee .qa/ci-export.log
+          if grep -E 'SCRIPT ERROR:|Parse Error:|Compile Error:|^ERROR:' .qa/ci-export.log; then exit 1; fi
+          node tools/prepare_web_release.mjs web-dist
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playtest-verification
+          path: .qa/ci-*.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wildbound-web-playtest
+          path: web-dist

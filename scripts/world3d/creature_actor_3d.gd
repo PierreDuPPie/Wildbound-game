@@ -18,6 +18,7 @@ var state_timer: float = 0.0
 var player: Node3D
 var visual_root: Node3D
 var gravity: float = 9.8
+var _rest_pose: Array[Dictionary] = []
 
 func _ready() -> void:
 	spawn_position = global_position
@@ -53,6 +54,33 @@ func _determine_behavior() -> void:
 			notice_range = 9.5
 		else:
 			behavior = Behavior.PASSIVE
+
+	# Specific behavioral tuning for apex, ambush, and megafauna species
+	if species:
+		if species.species_id == &"crocodyl":
+			behavior = Behavior.SENTRY
+			notice_range = 7.5
+			charge_range = 4.5
+			move_speed = 6.2
+		elif species.species_id == &"mambara":
+			behavior = Behavior.AGGRESSIVE
+			notice_range = 8.0
+			charge_range = 4.0
+			move_speed = 7.0
+		elif species.species_id == &"rhinorex":
+			behavior = Behavior.AGGRESSIVE
+			notice_range = 8.0
+			charge_range = 5.0
+			move_speed = 5.8
+		elif species.species_id == &"elephunt":
+			behavior = Behavior.DEFENSIVE
+			notice_range = 10.0
+			charge_range = 5.0
+			move_speed = 4.5
+		elif species.species_id == &"baboonic":
+			behavior = Behavior.SENTRY
+			notice_range = 9.5
+			move_speed = 5.5
 	
 	if behavior == Behavior.SENTRY:
 		current_state = State.SENTRY_LOOK
@@ -172,10 +200,47 @@ func _process_idle(delta: float) -> void:
 				if wing:
 					var side: float = -1.0 if wing_name == "WingLeft" else 1.0
 					wing.rotation.z = side * (0.10 + sin(t * 2.2) * 0.035)
+		elif species.species_id == &"elephunt":
+			visual_root.scale.y = 1.0 + sin(t * 1.5) * 0.02
+			var trunk_mid: Node3D = visual_root.get_node_or_null("Body/Head/TrunkBase/TrunkMid")
+			if trunk_mid:
+				trunk_mid.rotation.x = -0.35 + sin(t * 1.5) * 0.12
+			for ear_name in ["EarLeft", "EarRight"]:
+				var ear: Node3D = visual_root.get_node_or_null("Body/Head/" + ear_name)
+				if ear:
+					var side: float = -1.0 if ear_name == "EarLeft" else 1.0
+					ear.rotation.y = side * (0.22 + sin(t * 1.5) * 0.10)
+		elif species.species_id == &"rhinorex":
+			visual_root.scale.y = 1.0 + sin(t * 2.0) * 0.025
+			var head: Node3D = visual_root.get_node_or_null("Body/Head")
+			if head:
+				head.rotation.x = -0.22 + sin(t * 2.0) * 0.04
+		elif species.species_id == &"crocodyl":
+			var tail_base: Node3D = visual_root.get_node_or_null("Body/TailBase")
+			if tail_base:
+				tail_base.rotation.y = sin(t * 2.2) * 0.10
+			var tail_tip: Node3D = visual_root.get_node_or_null("Body/TailBase/TailTip")
+			if tail_tip:
+				tail_tip.rotation.y = sin(t * 2.2 + 0.5) * 0.14
+		elif species.species_id == &"baboonic":
+			visual_root.position.y = abs(sin(t * 4.0)) * 0.02
+			var head: Node3D = visual_root.get_node_or_null("Body/Head")
+			if head:
+				head.rotation.y = sin(t * 2.5) * 0.15
+		elif species.species_id == &"mambara":
+			for i in range(7):
+				var seg: Node3D = visual_root.get_node_or_null("Body/BodySeg%d" % i)
+				if seg:
+					seg.position.x = sin(t * 3.2 + float(i) * 0.7) * 0.10
+			var tongue: Node3D = visual_root.get_node_or_null("Body/Head/Tongue")
+			if tongue:
+				tongue.scale.z = 1.0 + maxf(0.0, sin(t * 5.0)) * 1.2
 		else:
 			visual_root.scale.y = 1.0 + sin(t * 3.0) * 0.05
 
 func _transition_to(new_state: State) -> void:
+	for pose: Dictionary in _rest_pose:
+		pose.part.transform = pose.transform
 	current_state = new_state
 	state_timer = 0.0
 	if new_state == State.ENCOUNTERED:
@@ -207,6 +272,35 @@ func _transition_to(new_state: State) -> void:
 			elif new_state == State.CURL:
 				# Armored sphere tuck
 				visual_root.scale = Vector3(0.7, 0.65, 0.7)
+		elif species and species.species_id == &"elephunt":
+			if new_state == State.NOTICE:
+				visual_root.scale = Vector3(1.10, 1.15, 1.10)
+				var ear_l: Node3D = visual_root.get_node_or_null("Body/Head/EarLeft")
+				var ear_r: Node3D = visual_root.get_node_or_null("Body/Head/EarRight")
+				if ear_l: ear_l.rotation.y = -0.45
+				if ear_r: ear_r.rotation.y = 0.45
+				var trunk_base: Node3D = visual_root.get_node_or_null("Body/Head/TrunkBase")
+				if trunk_base: trunk_base.rotation.x = -0.85
+		elif species and species.species_id == &"rhinorex":
+			if new_state == State.NOTICE or new_state == State.CHARGE:
+				visual_root.scale = Vector3(1.05, 0.92, 1.10)
+				var head: Node3D = visual_root.get_node_or_null("Body/Head")
+				if head: head.rotation.x = -0.38
+		elif species and species.species_id == &"crocodyl":
+			if new_state == State.NOTICE or new_state == State.STARE:
+				var jaw: Node3D = visual_root.get_node_or_null("Body/Head/Jaw")
+				if jaw:
+					jaw.rotation.x = 0.38
+		elif species and species.species_id == &"baboonic":
+			if new_state == State.NOTICE:
+				visual_root.position.y = 0.18
+				visual_root.scale = Vector3(0.92, 1.30, 0.92)
+		elif species and species.species_id == &"mambara":
+			if new_state == State.NOTICE or new_state == State.STARE:
+				var head: Node3D = visual_root.get_node_or_null("Body/Head")
+				if head:
+					head.position.y = 0.32
+					head.rotation.x = -0.35
 		else:
 			if new_state == State.NOTICE:
 				visual_root.scale = Vector3(1.1, 1.1, 1.1)
@@ -266,8 +360,34 @@ func _build_visuals() -> void:
 			_build_lionet()
 		&"vulturon":
 			_build_vulturon()
+		&"elephunt":
+			_build_elephunt()
+		&"rhinorex":
+			_build_rhinorex()
+		&"crocodyl":
+			_build_crocodyl()
+		&"baboonic":
+			_build_baboonic()
+		&"mambara":
+			_build_mambara()
 		_:
 			_build_generic()
+	if species.species_id in [&"elephunt", &"rhinorex", &"crocodyl", &"baboonic", &"mambara"]:
+		_budget_new_model(visual_root)
+		for part_path: String in ["Body/Head", "Body/Head/TrunkBase", "Body/Head/EarLeft", "Body/Head/EarRight", "Body/Head/Jaw"]:
+			var part := visual_root.get_node_or_null(part_path) as Node3D
+			if part != null: _rest_pose.append({"part":part, "transform":part.transform})
+
+func _budget_new_model(node: Node) -> void:
+	# Mobile/web budget: default primitive tessellation is excessive for these
+	# small stylized animals. Keep silhouettes while reducing vertex work.
+	if node is MeshInstance3D:
+		if node.mesh is SphereMesh:
+			node.mesh.radial_segments = 16
+			node.mesh.rings = 8
+		elif node.mesh is CylinderMesh:
+			node.mesh.radial_segments = 12
+	for child: Node in node.get_children(): _budget_new_model(child)
 
 func _build_vulturon() -> void:
 	# Cape-vulture inspired companion: pale mantle, charcoal flight feathers,
@@ -857,6 +977,590 @@ func _build_lionet() -> void:
 	tail.rotation.x = PI / 4.0
 	tail.position = Vector3(0, 0.08, 0.5)
 	body.add_child(tail)
+
+func _build_elephunt() -> void:
+	# African Elephant: Colossal slate-grey frame, arched back, curved ivory tusks, segmented trunk, flapping fan ears
+	var mat_hide := StandardMaterial3D.new()
+	mat_hide.albedo_color = Color("#6b7074")
+	mat_hide.roughness = 0.95
+	var mat_tusk := StandardMaterial3D.new()
+	mat_tusk.albedo_color = Color("#eee5ce")
+	mat_tusk.roughness = 0.4
+	var mat_dark := StandardMaterial3D.new()
+	mat_dark.albedo_color = Color("#2c2d30")
+	var mat_inner_ear := StandardMaterial3D.new()
+	mat_inner_ear.albedo_color = Color("#827773")
+
+	var body := MeshInstance3D.new()
+	body.name = "Body"
+	body.mesh = BoxMesh.new()
+	body.mesh.size = Vector3(1.18, 0.98, 1.68)
+	body.material_override = mat_hide
+	body.position.y = 0.88
+	visual_root.add_child(body)
+
+	# High shoulder hump
+	var hump := MeshInstance3D.new()
+	hump.name = "Hump"
+	hump.mesh = SphereMesh.new()
+	hump.mesh.radius = 0.52
+	hump.mesh.height = 0.55
+	hump.material_override = mat_hide
+	hump.scale = Vector3(1.05, 0.65, 1.15)
+	hump.position = Vector3(0, 0.48, -0.22)
+	body.add_child(hump)
+
+	# Domed Head
+	var head := MeshInstance3D.new()
+	head.name = "Head"
+	head.mesh = SphereMesh.new()
+	head.mesh.radius = 0.42
+	head.mesh.height = 0.78
+	head.material_override = mat_hide
+	head.scale = Vector3(0.92, 1.05, 0.95)
+	head.position = Vector3(0, 0.32, -0.98)
+	body.add_child(head)
+
+	# Segmented trunk
+	var trunk_base := MeshInstance3D.new()
+	trunk_base.name = "TrunkBase"
+	trunk_base.mesh = CylinderMesh.new()
+	trunk_base.mesh.top_radius = 0.14
+	trunk_base.mesh.bottom_radius = 0.11
+	trunk_base.mesh.height = 0.42
+	trunk_base.material_override = mat_hide
+	trunk_base.rotation.x = -0.55
+	trunk_base.position = Vector3(0, -0.15, -0.32)
+	head.add_child(trunk_base)
+
+	var trunk_mid := MeshInstance3D.new()
+	trunk_mid.name = "TrunkMid"
+	trunk_mid.mesh = CylinderMesh.new()
+	trunk_mid.mesh.top_radius = 0.11
+	trunk_mid.mesh.bottom_radius = 0.08
+	trunk_mid.mesh.height = 0.38
+	trunk_mid.material_override = mat_hide
+	trunk_mid.rotation.x = -0.35
+	trunk_mid.position = Vector3(0, -0.32, -0.06)
+	trunk_base.add_child(trunk_mid)
+
+	var trunk_tip := MeshInstance3D.new()
+	trunk_tip.name = "TrunkTip"
+	trunk_tip.mesh = CylinderMesh.new()
+	trunk_tip.mesh.top_radius = 0.08
+	trunk_tip.mesh.bottom_radius = 0.05
+	trunk_tip.mesh.height = 0.32
+	trunk_tip.material_override = mat_hide
+	trunk_tip.rotation.x = 0.45
+	trunk_tip.position = Vector3(0, -0.28, 0.04)
+	trunk_mid.add_child(trunk_tip)
+
+	# Curving Ivory Tusks & Broad Fan Ears
+	for side: float in [-1.0, 1.0]:
+		var ear := MeshInstance3D.new()
+		ear.name = "EarLeft" if side < 0 else "EarRight"
+		ear.mesh = BoxMesh.new()
+		ear.mesh.size = Vector3(0.04, 0.72, 0.54)
+		ear.material_override = mat_inner_ear
+		ear.position = Vector3(side * 0.46, 0.08, -0.05)
+		ear.rotation.y = side * 0.22
+		head.add_child(ear)
+
+		var tusk := MeshInstance3D.new()
+		tusk.name = "TuskLeft" if side < 0 else "TuskRight"
+		tusk.mesh = CylinderMesh.new()
+		tusk.mesh.top_radius = 0.015
+		tusk.mesh.bottom_radius = 0.065
+		tusk.mesh.height = 0.65
+		tusk.material_override = mat_tusk
+		tusk.position = Vector3(side * 0.22, -0.18, -0.25)
+		tusk.rotation.x = -0.75
+		tusk.rotation.z = side * -0.25
+		head.add_child(tusk)
+
+	# 4 Sturdy Pillar Legs
+	for x: float in [-0.44, 0.44]:
+		for z: float in [-0.55, 0.52]:
+			var leg := MeshInstance3D.new()
+			leg.mesh = CylinderMesh.new()
+			leg.mesh.top_radius = 0.17
+			leg.mesh.bottom_radius = 0.15
+			leg.mesh.height = 0.88
+			leg.material_override = mat_hide
+			leg.position = Vector3(x, -0.48, z)
+			body.add_child(leg)
+
+			var nail := MeshInstance3D.new()
+			nail.mesh = BoxMesh.new()
+			nail.mesh.size = Vector3(0.18, 0.08, 0.10)
+			nail.material_override = mat_dark
+			nail.position = Vector3(0, -0.40, -0.12)
+			leg.add_child(nail)
+
+	# Rope Tail with dark tuft
+	var tail := MeshInstance3D.new()
+	tail.name = "Tail"
+	tail.mesh = CylinderMesh.new()
+	tail.mesh.top_radius = 0.03
+	tail.mesh.bottom_radius = 0.04
+	tail.mesh.height = 0.62
+	tail.material_override = mat_hide
+	tail.rotation.x = 0.35
+	tail.position = Vector3(0, -0.05, 0.86)
+	body.add_child(tail)
+
+	var tuft := MeshInstance3D.new()
+	tuft.mesh = SphereMesh.new()
+	tuft.mesh.radius = 0.08
+	tuft.mesh.height = 0.18
+	tuft.material_override = mat_dark
+	tuft.position = Vector3(0, -0.32, 0.0)
+	tail.add_child(tuft)
+
+func _build_rhinorex() -> void:
+	# White Rhinoceros: Heavy armored tank with forward nasal horn, secondary forehead horn, and dermal shoulder/hip plates
+	var mat_slate := StandardMaterial3D.new()
+	mat_slate.albedo_color = Color("#646a68")
+	mat_slate.roughness = 0.95
+	var mat_plate := StandardMaterial3D.new()
+	mat_plate.albedo_color = Color("#555b59")
+	mat_plate.roughness = 0.85
+	var mat_horn := StandardMaterial3D.new()
+	mat_horn.albedo_color = Color("#ded2b8")
+	mat_horn.roughness = 0.5
+	var mat_hoof := StandardMaterial3D.new()
+	mat_hoof.albedo_color = Color("#323534")
+
+	var body := MeshInstance3D.new()
+	body.name = "Body"
+	body.mesh = BoxMesh.new()
+	body.mesh.size = Vector3(0.96, 0.78, 1.48)
+	body.material_override = mat_slate
+	body.position.y = 0.54
+	visual_root.add_child(body)
+
+	# Dermal Shoulder & Flank Plates
+	var shoulder := MeshInstance3D.new()
+	shoulder.name = "ShoulderPlate"
+	shoulder.mesh = BoxMesh.new()
+	shoulder.mesh.size = Vector3(1.02, 0.24, 0.54)
+	shoulder.material_override = mat_plate
+	shoulder.position = Vector3(0, 0.36, -0.32)
+	body.add_child(shoulder)
+
+	var flank := MeshInstance3D.new()
+	flank.name = "FlankPlate"
+	flank.mesh = BoxMesh.new()
+	flank.mesh.size = Vector3(0.98, 0.20, 0.48)
+	flank.material_override = mat_plate
+	flank.position = Vector3(0, 0.34, 0.38)
+	body.add_child(flank)
+
+	# Angular Head
+	var head := MeshInstance3D.new()
+	head.name = "Head"
+	head.mesh = BoxMesh.new()
+	head.mesh.size = Vector3(0.52, 0.44, 0.68)
+	head.material_override = mat_slate
+	head.position = Vector3(0, 0.12, -0.96)
+	head.rotation.x = -0.22
+	body.add_child(head)
+
+	# Massive Primary Nasal Horn & Secondary Forehead Horn
+	var horn_main := MeshInstance3D.new()
+	horn_main.name = "HornMain"
+	horn_main.mesh = CylinderMesh.new()
+	horn_main.mesh.top_radius = 0.02
+	horn_main.mesh.bottom_radius = 0.12
+	horn_main.mesh.height = 0.58
+	horn_main.material_override = mat_horn
+	horn_main.position = Vector3(0, 0.34, -0.22)
+	horn_main.rotation.x = 0.35
+	head.add_child(horn_main)
+
+	var horn_sub := MeshInstance3D.new()
+	horn_sub.name = "HornSub"
+	horn_sub.mesh = CylinderMesh.new()
+	horn_sub.mesh.top_radius = 0.02
+	horn_sub.mesh.bottom_radius = 0.08
+	horn_sub.mesh.height = 0.28
+	horn_sub.material_override = mat_horn
+	horn_sub.position = Vector3(0, 0.30, 0.08)
+	horn_sub.rotation.x = 0.20
+	head.add_child(horn_sub)
+
+	# Tubular Ears
+	for side: float in [-1.0, 1.0]:
+		var ear := MeshInstance3D.new()
+		ear.mesh = CylinderMesh.new()
+		ear.mesh.top_radius = 0.03
+		ear.mesh.bottom_radius = 0.05
+		ear.mesh.height = 0.18
+		ear.material_override = mat_plate
+		ear.position = Vector3(side * 0.22, 0.26, 0.25)
+		ear.rotation.z = side * -0.35
+		ear.rotation.x = -0.20
+		head.add_child(ear)
+
+	# 4 Heavy Stocky Legs
+	for x: float in [-0.36, 0.36]:
+		for z: float in [-0.46, 0.44]:
+			var leg := MeshInstance3D.new()
+			leg.mesh = CylinderMesh.new()
+			leg.mesh.top_radius = 0.15
+			leg.mesh.bottom_radius = 0.13
+			leg.mesh.height = 0.54
+			leg.material_override = mat_slate
+			leg.position = Vector3(x, -0.42, z)
+			body.add_child(leg)
+
+			var hoof := MeshInstance3D.new()
+			hoof.mesh = BoxMesh.new()
+			hoof.mesh.size = Vector3(0.18, 0.08, 0.20)
+			hoof.material_override = mat_hoof
+			hoof.position = Vector3(0, -0.24, -0.02)
+			leg.add_child(hoof)
+
+	# Stiff Tail
+	var tail := MeshInstance3D.new()
+	tail.name = "Tail"
+	tail.mesh = CylinderMesh.new()
+	tail.mesh.top_radius = 0.025
+	tail.mesh.bottom_radius = 0.04
+	tail.mesh.height = 0.38
+	tail.material_override = mat_slate
+	tail.position = Vector3(0, 0.05, 0.76)
+	tail.rotation.x = 0.45
+	body.add_child(tail)
+
+func _build_crocodyl() -> void:
+	# Nile Crocodile: Very low-slung sprawling amphibious predator with broad serrated snout, dorsal scutes, and heavy tail
+	var mat_dorsal := StandardMaterial3D.new()
+	mat_dorsal.albedo_color = Color("#43523c")
+	mat_dorsal.roughness = 0.85
+	var mat_ventral := StandardMaterial3D.new()
+	mat_ventral.albedo_color = Color("#828a65")
+	mat_ventral.roughness = 0.90
+	var mat_scute := StandardMaterial3D.new()
+	mat_scute.albedo_color = Color("#303a2c")
+	mat_scute.roughness = 0.80
+	var mat_tooth := StandardMaterial3D.new()
+	mat_tooth.albedo_color = Color("#f0ede4")
+	mat_tooth.roughness = 0.3
+
+	var body := MeshInstance3D.new()
+	body.name = "Body"
+	body.mesh = BoxMesh.new()
+	body.mesh.size = Vector3(0.74, 0.28, 1.58)
+	body.material_override = mat_dorsal
+	body.position.y = 0.18
+	visual_root.add_child(body)
+
+	# Pale ventral belly plate
+	var belly := MeshInstance3D.new()
+	belly.name = "Belly"
+	belly.mesh = BoxMesh.new()
+	belly.mesh.size = Vector3(0.66, 0.08, 1.50)
+	belly.material_override = mat_ventral
+	belly.position = Vector3(0, -0.11, 0)
+	body.add_child(belly)
+
+	# Tapered Snout & Head
+	var head := MeshInstance3D.new()
+	head.name = "Head"
+	head.mesh = BoxMesh.new()
+	head.mesh.size = Vector3(0.48, 0.18, 0.74)
+	head.material_override = mat_dorsal
+	head.position = Vector3(0, 0.02, -1.08)
+	body.add_child(head)
+
+	# Raised Dorsal Eye Ridges
+	for side: float in [-1.0, 1.0]:
+		var eye := MeshInstance3D.new()
+		eye.mesh = SphereMesh.new()
+		eye.mesh.radius = 0.06
+		eye.mesh.height = 0.10
+		eye.material_override = mat_scute
+		eye.position = Vector3(side * 0.16, 0.10, 0.12)
+		head.add_child(eye)
+
+	# Lower Jaw
+	var jaw := MeshInstance3D.new()
+	jaw.name = "Jaw"
+	jaw.mesh = BoxMesh.new()
+	jaw.mesh.size = Vector3(0.44, 0.08, 0.70)
+	jaw.material_override = mat_ventral
+	jaw.position = Vector3(0, -0.10, 0.02)
+	head.add_child(jaw)
+
+	# Interlocking Teeth
+	for i in range(4):
+		var t_pos_z := -0.28 + i * 0.16
+		for side: float in [-1.0, 1.0]:
+			var tooth := MeshInstance3D.new()
+			tooth.mesh = BoxMesh.new()
+			tooth.mesh.size = Vector3(0.02, 0.04, 0.03)
+			tooth.material_override = mat_tooth
+			tooth.position = Vector3(side * 0.22, 0.05, t_pos_z)
+			jaw.add_child(tooth)
+
+	# Dual Row of Raised Dorsal Scutes
+	for r in range(6):
+		var scute_z := -0.60 + r * 0.24
+		for side: float in [-1.0, 1.0]:
+			var scute := MeshInstance3D.new()
+			scute.mesh = BoxMesh.new()
+			scute.mesh.size = Vector3(0.06, 0.08, 0.14)
+			scute.material_override = mat_scute
+			scute.position = Vector3(side * 0.18, 0.16, scute_z)
+			scute.rotation.z = side * 0.25
+			body.add_child(scute)
+
+	# Heavy Muscular Tail
+	var tail_base := MeshInstance3D.new()
+	tail_base.name = "TailBase"
+	tail_base.mesh = BoxMesh.new()
+	tail_base.mesh.size = Vector3(0.46, 0.24, 0.78)
+	tail_base.material_override = mat_dorsal
+	tail_base.position = Vector3(0, 0.01, 1.10)
+	body.add_child(tail_base)
+
+	var tail_tip := MeshInstance3D.new()
+	tail_tip.name = "TailTip"
+	tail_tip.mesh = BoxMesh.new()
+	tail_tip.mesh.size = Vector3(0.22, 0.18, 0.88)
+	tail_tip.material_override = mat_dorsal
+	tail_tip.position = Vector3(0, 0.0, 0.78)
+	tail_base.add_child(tail_tip)
+
+	# Raised Tail Crest
+	var tail_crest := MeshInstance3D.new()
+	tail_crest.mesh = BoxMesh.new()
+	tail_crest.mesh.size = Vector3(0.04, 0.12, 0.82)
+	tail_crest.material_override = mat_scute
+	tail_crest.position = Vector3(0, 0.12, 0)
+	tail_tip.add_child(tail_crest)
+
+	# 4 Splayed Reptilian Legs
+	for side: float in [-1.0, 1.0]:
+		for z: float in [-0.48, 0.44]:
+			var leg := MeshInstance3D.new()
+			leg.mesh = BoxMesh.new()
+			leg.mesh.size = Vector3(0.28, 0.12, 0.18)
+			leg.material_override = mat_dorsal
+			leg.position = Vector3(side * 0.46, -0.04, z)
+			leg.rotation.z = side * -0.28
+			body.add_child(leg)
+
+			var foot := MeshInstance3D.new()
+			foot.mesh = BoxMesh.new()
+			foot.mesh.size = Vector3(0.16, 0.04, 0.22)
+			foot.material_override = mat_scute
+			foot.position = Vector3(side * 0.12, -0.06, 0)
+			leg.add_child(foot)
+
+func _build_baboonic() -> void:
+	# Chacma Baboon: Quadrupedal sloping back, grizzled olive-brown fur, dark dog-like muzzle, and broken high-arch tail
+	var mat_fur := StandardMaterial3D.new()
+	mat_fur.albedo_color = Color("#6b583e")
+	mat_fur.roughness = 0.90
+	var mat_mantle := StandardMaterial3D.new()
+	mat_mantle.albedo_color = Color("#54432d")
+	mat_mantle.roughness = 0.95
+	var mat_mask := StandardMaterial3D.new()
+	mat_mask.albedo_color = Color("#24211e")
+	mat_mask.roughness = 0.80
+	var mat_callosity := StandardMaterial3D.new()
+	mat_callosity.albedo_color = Color("#9e4450")
+	mat_callosity.roughness = 0.70
+
+	var body := MeshInstance3D.new()
+	body.name = "Body"
+	body.mesh = BoxMesh.new()
+	body.mesh.size = Vector3(0.48, 0.42, 0.84)
+	body.material_override = mat_fur
+	body.position.y = 0.42
+	visual_root.add_child(body)
+
+	# Muscular Shoulder Mantle
+	var shoulders := MeshInstance3D.new()
+	shoulders.name = "Shoulders"
+	shoulders.mesh = SphereMesh.new()
+	shoulders.mesh.radius = 0.28
+	shoulders.mesh.height = 0.44
+	shoulders.material_override = mat_mantle
+	shoulders.scale = Vector3(1.12, 0.95, 0.85)
+	shoulders.position = Vector3(0, 0.14, -0.22)
+	body.add_child(shoulders)
+
+	# Head with dark dog-like muzzle
+	var head := MeshInstance3D.new()
+	head.name = "Head"
+	head.mesh = SphereMesh.new()
+	head.mesh.radius = 0.18
+	head.mesh.height = 0.32
+	head.material_override = mat_fur
+	head.position = Vector3(0, 0.18, -0.48)
+	body.add_child(head)
+
+	var muzzle := MeshInstance3D.new()
+	muzzle.name = "Muzzle"
+	muzzle.mesh = BoxMesh.new()
+	muzzle.mesh.size = Vector3(0.18, 0.16, 0.28)
+	muzzle.material_override = mat_mask
+	muzzle.position = Vector3(0, -0.04, -0.22)
+	head.add_child(muzzle)
+
+	# Side Cheek Whisker Tufts
+	for side: float in [-1.0, 1.0]:
+		var cheek := MeshInstance3D.new()
+		cheek.mesh = BoxMesh.new()
+		cheek.mesh.size = Vector3(0.08, 0.12, 0.14)
+		cheek.material_override = mat_fur
+		cheek.position = Vector3(side * 0.16, -0.02, -0.06)
+		cheek.rotation.y = side * 0.35
+		head.add_child(cheek)
+
+	# Distinctive High-Arched "Broken" Baboon Tail
+	var tail_base := MeshInstance3D.new()
+	tail_base.name = "TailBase"
+	tail_base.mesh = CylinderMesh.new()
+	tail_base.mesh.top_radius = 0.03
+	tail_base.mesh.bottom_radius = 0.04
+	tail_base.mesh.height = 0.28
+	tail_base.material_override = mat_fur
+	tail_base.position = Vector3(0, 0.22, 0.42)
+	tail_base.rotation.x = -1.15
+	body.add_child(tail_base)
+
+	var tail_droop := MeshInstance3D.new()
+	tail_droop.name = "TailDroop"
+	tail_droop.mesh = CylinderMesh.new()
+	tail_droop.mesh.top_radius = 0.02
+	tail_droop.mesh.bottom_radius = 0.03
+	tail_droop.mesh.height = 0.38
+	tail_droop.material_override = mat_fur
+	tail_droop.position = Vector3(0, 0.15, 0.12)
+	tail_droop.rotation.x = 2.1
+	tail_base.add_child(tail_droop)
+
+	# Crimson/Mauve Ischial Callosity Pad
+	var rump := MeshInstance3D.new()
+	rump.name = "Rump"
+	rump.mesh = BoxMesh.new()
+	rump.mesh.size = Vector3(0.26, 0.12, 0.08)
+	rump.material_override = mat_callosity
+	rump.position = Vector3(0, -0.02, 0.43)
+	body.add_child(rump)
+
+	# Knuckle-Walking Forelimbs & Crouched Hind Legs
+	for side: float in [-1.0, 1.0]:
+		# Forelegs (longer)
+		var foreleg := MeshInstance3D.new()
+		foreleg.mesh = CylinderMesh.new()
+		foreleg.mesh.top_radius = 0.065
+		foreleg.mesh.bottom_radius = 0.05
+		foreleg.mesh.height = 0.48
+		foreleg.material_override = mat_mantle
+		foreleg.position = Vector3(side * 0.22, -0.26, -0.26)
+		body.add_child(foreleg)
+
+		var knuckle := MeshInstance3D.new()
+		knuckle.mesh = BoxMesh.new()
+		knuckle.mesh.size = Vector3(0.09, 0.06, 0.12)
+		knuckle.material_override = mat_mask
+		knuckle.position = Vector3(0, -0.22, -0.02)
+		foreleg.add_child(knuckle)
+
+		# Hind legs (crouched)
+		var hindleg := MeshInstance3D.new()
+		hindleg.mesh = CylinderMesh.new()
+		hindleg.mesh.top_radius = 0.075
+		hindleg.mesh.bottom_radius = 0.055
+		hindleg.mesh.height = 0.38
+		hindleg.material_override = mat_fur
+		hindleg.position = Vector3(side * 0.20, -0.22, 0.30)
+		body.add_child(hindleg)
+
+func _build_mambara() -> void:
+	# Black Mamba: Slender dark-slate serpentine predator with coffin-shaped skull, flared hood, and flowing articulated body segments
+	var mat_dorsal := StandardMaterial3D.new()
+	mat_dorsal.albedo_color = Color("#2a332d")
+	mat_dorsal.roughness = 0.65
+	var mat_ventral := StandardMaterial3D.new()
+	mat_ventral.albedo_color = Color("#c8d2c4")
+	mat_ventral.roughness = 0.85
+	var mat_eye := StandardMaterial3D.new()
+	mat_eye.albedo_color = Color("#d69e31")
+	var mat_tongue := StandardMaterial3D.new()
+	mat_tongue.albedo_color = Color("#a63333")
+
+	var body := MeshInstance3D.new()
+	body.name = "Body"
+	body.position.y = 0.12
+	visual_root.add_child(body)
+
+	# Coffin-shaped Viper Head
+	var head := MeshInstance3D.new()
+	head.name = "Head"
+	head.mesh = BoxMesh.new()
+	head.mesh.size = Vector3(0.24, 0.12, 0.34)
+	head.material_override = mat_dorsal
+	head.position = Vector3(0, 0.08, -0.72)
+	body.add_child(head)
+
+	# Flared Cervical Hood Plate
+	var hood := MeshInstance3D.new()
+	hood.name = "Hood"
+	hood.mesh = BoxMesh.new()
+	hood.mesh.size = Vector3(0.34, 0.06, 0.24)
+	hood.material_override = mat_dorsal
+	hood.position = Vector3(0, -0.01, 0.12)
+	head.add_child(hood)
+
+	# Slit Eyes
+	for side: float in [-1.0, 1.0]:
+		var eye := MeshInstance3D.new()
+		eye.mesh = SphereMesh.new()
+		eye.mesh.radius = 0.035
+		eye.mesh.height = 0.05
+		eye.material_override = mat_eye
+		eye.position = Vector3(side * 0.11, 0.04, -0.06)
+		head.add_child(eye)
+
+	# Forked Tongue
+	var tongue := MeshInstance3D.new()
+	tongue.name = "Tongue"
+	tongue.mesh = BoxMesh.new()
+	tongue.mesh.size = Vector3(0.04, 0.01, 0.14)
+	tongue.material_override = mat_tongue
+	tongue.position = Vector3(0, -0.02, -0.22)
+	head.add_child(tongue)
+
+	# 7 Interconnected Articulated Serpentine Body Segments along an S-curve
+	for i in range(7):
+		var seg := MeshInstance3D.new()
+		seg.name = "BodySeg%d" % i
+		var radius_factor := 1.0 - (float(i) / 8.5)
+		seg.mesh = CylinderMesh.new()
+		seg.mesh.top_radius = 0.09 * radius_factor
+		seg.mesh.bottom_radius = 0.08 * radius_factor
+		seg.mesh.height = 0.26
+		seg.material_override = mat_dorsal
+		seg.rotation.x = PI / 2.0
+		# Gentle flowing S-curve offset
+		var curve_x := sin(float(i) * 0.9) * 0.12
+		seg.position = Vector3(curve_x, 0.0, -0.45 + float(i) * 0.24)
+		body.add_child(seg)
+
+		# Pale ventral belly stripe
+		var belly := MeshInstance3D.new()
+		belly.mesh = BoxMesh.new()
+		belly.mesh.size = Vector3(0.12 * radius_factor, 0.02, 0.24)
+		belly.material_override = mat_ventral
+		belly.position = Vector3(0, -0.07 * radius_factor, 0)
+		belly.rotation.x = -PI / 2.0
+		seg.add_child(belly)
 
 func _build_generic() -> void:
 	var body = MeshInstance3D.new()

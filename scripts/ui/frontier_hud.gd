@@ -62,6 +62,7 @@ var _atlas_detail_box: VBoxContainer
 var _atlas_toolbar: VBoxContainer
 var _atlas_view_tabs: HBoxContainer
 var _atlas_view: String = "list"
+var _atlas_portrait_layout: bool = false
 var _browser_controls_obscured: Variant = null
 var _mobile: bool = false
 var _raw_prompt: String = ""
@@ -498,6 +499,8 @@ func open_navigation() -> void:
 		_reflow_modal()
 
 func _reflow_modal() -> void:
+	if current_modal == "atlas" and _atlas_portrait_layout != (_mobile and _safe_rect().size.x < 700):
+		_render_atlas.call_deferred()
 	if not is_instance_valid(modal_content):
 		return
 	if is_instance_valid(_modal_heading):
@@ -511,7 +514,7 @@ func _reflow_modal() -> void:
 		for description: Label in _camp_descriptions:
 			description.custom_minimum_size.x = 0 if _camp_grid.columns == 1 else 520
 	if is_instance_valid(_friends_setup):
-		_friends_setup.columns = 3 if _mobile and _modal_panel.size.x >= 820 else 1 if _mobile else 6
+		_friends_setup.columns = 3 if _mobile and _safe_rect().size.x >= 852 else 1 if _mobile else 6
 		for field: Control in [name_field, address_field, port_field]:
 			field.custom_minimum_size = Vector2(0 if _mobile else 220 if field == name_field else 270 if field == address_field else 0, 64 if _mobile else 0)
 			field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -533,8 +536,17 @@ func _reflow_modal() -> void:
 		_atlas_list_scroll.visible = not _mobile or _atlas_view == "list"
 		_atlas_detail_panel.visible = not _mobile or _atlas_view == "dossier"
 	_size_modal_controls(modal_content)
+	if _mobile:
+		_modal_panel.set_deferred("size", _safe_rect().size - Vector2(32,32))
 
 func _size_modal_controls(node: Node) -> void:
+	if _mobile and node is Label and node.get_parent() is VBoxContainer:
+		node.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		node.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	if current_modal == "atlas" and _atlas_portrait_layout and node is Label:
+		node.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		if not node.get_parent() is HBoxContainer:
+			node.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	# Let genuine touch events bubble through cards and buttons to Godot's
 	# touch scroll containers, which cancel button taps during swipes.
 	if current_modal == "atlas" and node is Control and not node is ScrollBar and not node is LineEdit:
@@ -578,6 +590,13 @@ func _process(delta: float) -> void:
 	if _mobile:
 		# Keep the placement ghost clear; one compact instruction strip sits
 		# above the thumb controls instead of stacking two central overlays.
+		var feedback_width := minf(540, _safe_rect().size.x - 32)
+		toast_label.custom_minimum_size.x = maxf(160, feedback_width - 32)
+		prompt_label.custom_minimum_size.x = maxf(160, feedback_width - 32)
+		toast_panel.size.x = feedback_width
+		prompt_panel.size.x = feedback_width
+		toast_panel.position.x = _safe_rect().get_center().x - feedback_width / 2
+		prompt_panel.position.x = _safe_rect().get_center().x - feedback_width / 2
 		prompt_panel.position.y = get_node("/root/MobileControls").safe_rect().end.y - (172 if building else 238)
 		if building:
 			prompt_panel.size.y = 80
@@ -845,6 +864,7 @@ func open_atlas() -> void:
 		_render_atlas()
 
 func _render_atlas() -> void:
+	_atlas_portrait_layout = _mobile and _safe_rect().size.x < 700
 	_clear_content()
 	var realm_title := WildAtlasManager.get_realm_title(_atlas_realm)
 	var all_creatures := WildAtlasManager.get_creatures(_atlas_realm)
@@ -1003,6 +1023,7 @@ func _populate_atlas_list(list_vbox: VBoxContainer) -> void:
 
 		var btn := Button.new()
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		btn.clip_text = true
 		btn.custom_minimum_size.y = 48 if not _mobile else 54
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var badge := " ★ WILDBOUND" if is_in_game else (" ★ BONDED" if is_bonded else " ◆")
@@ -1062,7 +1083,7 @@ func _update_atlas_selection() -> void:
 	var species_id: String = item.get("species_id", "")
 
 	# 1. HEADER CARD (Framed picture + Name & Identity)
-	var header_box := HBoxContainer.new()
+	var header_box: BoxContainer = VBoxContainer.new() if _atlas_portrait_layout else HBoxContainer.new()
 	header_box.add_theme_constant_override("separation", 18)
 	header_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_atlas_detail_box.add_child(header_box)
@@ -1113,7 +1134,7 @@ func _update_atlas_selection() -> void:
 	sub_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	name_box.add_child(sub_lbl)
 
-	var tags_row := HBoxContainer.new()
+	var tags_row: BoxContainer = VBoxContainer.new() if _atlas_portrait_layout else HBoxContainer.new()
 	tags_row.add_theme_constant_override("separation", 10)
 	name_box.add_child(tags_row)
 
@@ -1146,7 +1167,7 @@ func _update_atlas_selection() -> void:
 		stats_vbox.add_theme_constant_override("separation", 8)
 		stats_panel.add_child(stats_vbox)
 
-		var stats_header := HBoxContainer.new()
+		var stats_header: BoxContainer = VBoxContainer.new() if _atlas_portrait_layout else HBoxContainer.new()
 		stats_header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		stats_vbox.add_child(stats_header)
 
@@ -1160,7 +1181,7 @@ func _update_atlas_selection() -> void:
 			stats_header.add_child(bst_lbl)
 
 		var stat_grid := GridContainer.new()
-		stat_grid.columns = 2
+		stat_grid.columns = 1 if _atlas_portrait_layout else 2
 		stat_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		stat_grid.add_theme_constant_override("h_separation", 24)
 		stat_grid.add_theme_constant_override("v_separation", 8)
@@ -1263,7 +1284,7 @@ func _update_atlas_selection() -> void:
 	move_title.autowrap_mode = TextServer.AUTOWRAP_OFF
 	move_box.add_child(move_title)
 
-	var move_pills_row := HBoxContainer.new()
+	var move_pills_row: BoxContainer = VBoxContainer.new() if _atlas_portrait_layout else HBoxContainer.new()
 	move_pills_row.add_theme_constant_override("separation", 8)
 	move_box.add_child(move_pills_row)
 
@@ -1291,7 +1312,7 @@ func _update_atlas_selection() -> void:
 
 	# 4. ECOLOGY & HABITAT
 	var env_grid := GridContainer.new()
-	env_grid.columns = 2
+	env_grid.columns = 1 if _atlas_portrait_layout else 2
 	env_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	env_grid.add_theme_constant_override("h_separation", 20)
 	_atlas_detail_box.add_child(env_grid)

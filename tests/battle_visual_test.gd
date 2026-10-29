@@ -13,7 +13,8 @@ func _run() -> void:
 	player.experience = 210
 	var enemy := CreatureInstance.create(preload("res://data/creatures/vulturon.tres"), 7)
 	arena.setup(player, enemy)
-	check(arena.recent_log.has("Sentry spots the opening!") and not arena.recent_log.has("Meerkit spots the opening!"), "Vulturon's shared Sentry notification uses species-neutral text")
+	var opening_log := "\n".join(arena.recent_log)
+	check(opening_log.contains("Sentry spots the opening!") and not opening_log.contains("Meerkit spots the opening!"), "Vulturon's shared Sentry notification uses species-neutral text with its effect description")
 	var visual: CreatureVisual = arena.enemy_portrait
 	check(visual.sprite.texture != null, "Vulturon's real arena portrait resolves an illustrated texture")
 	if visual.sprite.texture == null:

@@ -4,6 +4,9 @@
 .upgrade-backup/
 android/build/
 builds/
+web-dist/
+scratch_*.gd
+scratch_*.gd.uid
 editor/
 imported/
 shader_cache/

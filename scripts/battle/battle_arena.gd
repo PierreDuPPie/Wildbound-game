@@ -680,7 +680,7 @@ func _show_items() -> void:
 func _use_item_action(item_data: ItemData) -> void:
 	if manager == null or manager.locked or item_data == null:
 		return
-	var res: Dictionary = InventoryManager.use_item_on_creature(item_data.item_id, player_creature, true)
+	var res: Dictionary = InventoryManager.use_item_on_creature(item_data.item_id, player_creature, true, manager)
 	if res.get("success", false):
 		items_grid.visible = false
 		command_grid.visible = true

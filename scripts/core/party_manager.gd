@@ -257,6 +257,8 @@ func to_save_dict() -> Dictionary:
 	}
 
 func load_from_save_dict(data: Dictionary) -> bool:
+	if not validate_save_data(data):
+		return false
 	var loaded_party: Array[CreatureInstance] = []
 	for creature_data: Variant in data.get("party", []):
 		if creature_data is Dictionary:
@@ -265,13 +267,30 @@ func load_from_save_dict(data: Dictionary) -> bool:
 				loaded_party.append(creature)
 	if loaded_party.is_empty():
 		return false
-	party = loaded_party
-
 	var loaded_reserve: Array[CreatureInstance] = []
 	for creature_data: Variant in data.get("reserve", []):
 		if creature_data is Dictionary:
 			var creature = CreatureInstance.from_save_dict(creature_data, species_lookup(), move_lookup())
 			if creature != null:
 				loaded_reserve.append(creature)
+	# Commit both rosters together only after every record has been validated.
+	party = loaded_party
 	reserve_storage = loaded_reserve
+	return true
+
+func validate_save_data(data: Variant) -> bool:
+	if not data is Dictionary or not data.get("party") is Array or not data.get("reserve", []) is Array:
+		return false
+	if data.party.is_empty() or data.party.size() > 6:
+		return false
+	var ids: Dictionary = {}
+	var known_species := species_lookup()
+	for record: Variant in data.party + data.get("reserve", []):
+		if not record is Dictionary or not CreatureInstance.validate_save_data(record, known_species):
+			return false
+		var id: String = record.get("instance_id", "")
+		# Legacy saves without IDs receive one during deserialization.
+		if not id.is_empty():
+			if ids.has(id): return false
+			ids[id] = true
 	return true

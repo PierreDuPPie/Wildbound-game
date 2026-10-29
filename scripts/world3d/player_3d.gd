@@ -136,6 +136,16 @@ func _physics_process(delta: float) -> void:
 			current_accel = 6.0 if running else 12.0
 			current_decel = 15.0
 			current_turn = 4.0 if running else 10.0
+		elif _mount_creature != null and _mount_creature.species != null and _mount_creature.species.species_id == &"buffalox":
+			current_speed = 11.5 if running else 7.5
+			current_accel = 12.0
+			current_decel = 24.0
+			current_turn = 7.0 if running else 10.0
+		elif _mount_creature != null and _mount_creature.species != null and _mount_creature.species.species_id == &"springer":
+			current_speed = 14.5 if running else 9.5
+			current_accel = 18.0
+			current_decel = 20.0
+			current_turn = 12.0
 		else:
 			current_speed = 13.5 if running else 9.0
 			current_accel = 16.0
@@ -204,7 +214,15 @@ func _process_jump(delta: float, grounded: bool) -> void:
 	else:
 		velocity.y -= gravity * delta
 	if movement_enabled and _jump_buffer_remaining > 0.0 and _coyote_remaining > 0.0:
-		velocity.y = jump_speed + (0.8 if is_mounted() else 0.0)
+		var bonus_jump := 0.0
+		if is_mounted():
+			bonus_jump = 0.8
+			if _mount_creature != null and _mount_creature.species != null:
+				if _mount_creature.species.species_id == &"springer":
+					bonus_jump = 2.4
+				elif _mount_creature.species.species_id == &"buffalox":
+					bonus_jump = 0.4
+		velocity.y = jump_speed + bonus_jump
 		_jump_buffer_remaining = 0.0
 		_coyote_remaining = 0.0
 		jumped.emit()
@@ -698,7 +716,7 @@ func _build_mount_visual(species_id: StringName, flying: bool) -> void:
 			_cylinder(leg, Vector3(0, -0.28, 0), 0.09, 0.065, 0.54, coat.darkened(0.05))
 			_box(leg, Vector3(0, -0.57, -0.025), Vector3(0.16, 0.12, 0.21), Color("#433c31"))
 			_mount_legs.append(leg)
-	_build_saddle()
+	_build_saddle(species_id)
 
 func _build_bird_mount() -> void:
 	var feathers := Color("#655b4d")
@@ -719,15 +737,147 @@ func _build_bird_mount() -> void:
 		_cylinder(_mount_root, Vector3(side * 0.19, 0.36, 0.1), 0.045, 0.03, 0.37, Color("#cfac63"))
 		_box(_mount_root, Vector3(side * 0.19, 0.17, -0.04), Vector3(0.15, 0.08, 0.27), Color("#b78b46"))
 	_box(_mount_root, Vector3(0, 0.69, 0.85), Vector3(0.4, 0.08, 0.66), Color("#423b32"))
-	_build_saddle()
+	_build_saddle(&"vulturon")
 	_box(_mount_root, Vector3(0, 0.87, 0), Vector3(0.68, 0.1, 0.09), Color("#53b9af"))
 
-func _build_saddle() -> void:
-	_box(_mount_root, Vector3(0, 1.11, 0), Vector3(0.64, 0.12, 0.62), Color("#3c6662"))
-	_box(_mount_root, Vector3(0, 1.19, 0.08), Vector3(0.43, 0.15, 0.46), Color("#8d572d"))
+func _build_saddle(species_id: StringName = &"") -> void:
+	match species_id:
+		&"gazellor":
+			_build_gazellor_saddle()
+		&"cheetan", &"cheetaron":
+			_build_cheetan_saddle()
+		&"warthusk", &"wartitan":
+			_build_warthusk_saddle()
+		&"buffalox":
+			_build_buffalox_saddle()
+		&"springer":
+			_build_springer_saddle()
+		_:
+			_build_standard_saddle()
+
+func _build_gazellor_saddle() -> void:
+	# Light scout saddle: acacia-green & gold trim pad, slim leather seat, polished brass ring stirrups, and reins
+	var saddle := Node3D.new()
+	saddle.name = "SaddleRig"
+	saddle.set_meta("saddle_style", "gazellor_scout")
+	_mount_root.add_child(saddle)
+
+	# Savannah blanket pad with gold trim
+	_box(saddle, Vector3(0, 1.10, 0), Vector3(0.62, 0.08, 0.58), Color("#2f524c"))
+	_box(saddle, Vector3(0, 1.11, 0), Vector3(0.66, 0.03, 0.62), Color("#d4a359"))
+	# Ergonomic sculpted leather seat
+	_box(saddle, Vector3(0, 1.18, 0.06), Vector3(0.40, 0.14, 0.44), Color("#7a4622"))
+	# Pommel arch & cantle
+	_box(saddle, Vector3(0, 1.25, -0.14), Vector3(0.18, 0.12, 0.08), Color("#5e3416"))
+	_box(saddle, Vector3(0, 1.26, 0.26), Vector3(0.28, 0.14, 0.08), Color("#5e3416"))
+	# Brass ring stirrups and drop leathers
+	for side: float in [-1.0, 1.0]:
+		_box(saddle, Vector3(side * 0.38, 0.88, 0), Vector3(0.06, 0.42, 0.18), Color("#57341b"))
+		_cylinder(saddle, Vector3(side * 0.40, 0.64, 0), 0.08, 0.08, 0.04, Color("#e5bf65"))
+	# Neck reins extending forward
+	_box(saddle, Vector3(0, 1.18, -0.42), Vector3(0.32, 0.04, 0.36), Color("#57341b"))
+
+func _build_cheetan_saddle() -> void:
+	# Aerodynamic racing harness: low-profile matte charcoal pad, speed-amber breastcollar, dual-cinch flush stirrups
+	var saddle := Node3D.new()
+	saddle.name = "SaddleRig"
+	saddle.set_meta("saddle_style", "cheetan_sprint")
+	_mount_root.add_child(saddle)
+
+	# Low-drag racing pad & amber racing stripes
+	_box(saddle, Vector3(0, 1.09, 0), Vector3(0.56, 0.07, 0.60), Color("#1f2023"))
+	_box(saddle, Vector3(0, 1.10, 0), Vector3(0.58, 0.03, 0.62), Color("#e88d2f"))
+	# Flush-mounted contoured saddle seat
+	_box(saddle, Vector3(0, 1.16, 0.04), Vector3(0.38, 0.12, 0.42), Color("#3d332a"))
+	# Padded breastplate collar across shoulders
+	_box(saddle, Vector3(0, 0.95, -0.65), Vector3(0.48, 0.14, 0.18), Color("#e88d2f"))
+	# Dual-cinch underbelly straps & flush stirrup cups
+	for side: float in [-1.0, 1.0]:
+		_box(saddle, Vector3(side * 0.35, 0.86, -0.06), Vector3(0.06, 0.38, 0.12), Color("#28292d"))
+		_box(saddle, Vector3(side * 0.35, 0.86, 0.10), Vector3(0.06, 0.38, 0.12), Color("#28292d"))
+		_box(saddle, Vector3(side * 0.37, 0.64, 0.02), Vector3(0.10, 0.06, 0.18), Color("#1a1b1d"))
+	# Forward aero grip handles
+	_box(saddle, Vector3(0, 1.22, -0.16), Vector3(0.24, 0.06, 0.06), Color("#e88d2f"))
+
+func _build_warthusk_saddle() -> void:
+	# Heavy charge war saddle: rugged oxblood leather, iron pommel crash plate, studded tusk straps, and canvas bedroll
+	var saddle := Node3D.new()
+	saddle.name = "SaddleRig"
+	saddle.set_meta("saddle_style", "warthusk_charge")
+	_mount_root.add_child(saddle)
+
+	# Heavy rugged pad
+	_box(saddle, Vector3(0, 1.11, 0), Vector3(0.70, 0.10, 0.66), Color("#4d2417"))
+	_box(saddle, Vector3(0, 1.20, 0.06), Vector3(0.46, 0.16, 0.48), Color("#69331f"))
+	# Reinforced forged iron pommel crash plate
+	_box(saddle, Vector3(0, 1.26, -0.18), Vector3(0.32, 0.18, 0.10), Color("#545a61"))
+	# Tusk guard harness straps with iron studs wrapping forward
+	_box(saddle, Vector3(0, 1.05, -0.85), Vector3(0.55, 0.08, 0.15), Color("#3d2116"))
+	for side: float in [-1.0, 1.0]:
+		_box(saddle, Vector3(side * 0.24, 1.06, -0.85), Vector3(0.06, 0.06, 0.06), Color("#7d848d"))
+	# Heavy cargo bedroll lashed behind cantle
+	var roll := _cylinder(saddle, Vector3(0, 1.22, 0.34), 0.10, 0.10, 0.62, Color("#756a58"))
+	roll.rotation.z = PI / 2.0
+	# Heavy iron drop stirrups
+	for side: float in [-1.0, 1.0]:
+		_box(saddle, Vector3(side * 0.42, 0.88, 0), Vector3(0.08, 0.42, 0.26), Color("#3b1f15"))
+		_box(saddle, Vector3(side * 0.44, 0.64, 0), Vector3(0.14, 0.06, 0.24), Color("#4a4f55"))
+
+func _build_buffalox_saddle() -> void:
+	# Heavy herder yoke & pack saddle: broad carved horn yoke, double flank packs, thick fleece underpad, wooden box stirrups
+	var saddle := Node3D.new()
+	saddle.name = "SaddleRig"
+	saddle.set_meta("saddle_style", "buffalox_herder")
+	_mount_root.add_child(saddle)
+
+	# Thick fleece underpad
+	_box(saddle, Vector3(0, 1.10, 0), Vector3(0.74, 0.10, 0.72), Color("#ded2b8"))
+	# Carved hardwood horn yoke across neck with brass bindings
+	_box(saddle, Vector3(0, 1.30, -0.68), Vector3(0.86, 0.10, 0.16), Color("#473221"))
+	for side: float in [-1.0, 1.0]:
+		_box(saddle, Vector3(side * 0.36, 1.30, -0.68), Vector3(0.08, 0.12, 0.18), Color("#c7a55d"))
+	# Deep wooden trekking saddle
+	_box(saddle, Vector3(0, 1.20, 0.04), Vector3(0.48, 0.16, 0.48), Color("#5e391e"))
+	# Double flank herder cargo packs
+	for side: float in [-1.0, 1.0]:
+		_box(saddle, Vector3(side * 0.48, 0.84, 0.10), Vector3(0.18, 0.36, 0.42), Color("#543e2c"))
+		# Brass buckle strap
+		_box(saddle, Vector3(side * 0.49, 0.84, 0.10), Vector3(0.02, 0.38, 0.12), Color("#c7a55d"))
+		# Wooden box stirrup
+		_box(saddle, Vector3(side * 0.44, 0.62, -0.10), Vector3(0.14, 0.08, 0.22), Color("#61452e"))
+
+func _build_springer_saddle() -> void:
+	# High-jump stirrup mount: cantilevered suspension seat, flexible spring-steel drop stirrups, Kalahari geometric patterned girth, copper bells
+	var saddle := Node3D.new()
+	saddle.name = "SaddleRig"
+	saddle.set_meta("saddle_style", "springer_highjump")
+	_mount_root.add_child(saddle)
+
+	# Kalahari patterned blanket & red/ochre trim
+	_box(saddle, Vector3(0, 1.11, 0), Vector3(0.60, 0.08, 0.58), Color("#69391d"))
+	_box(saddle, Vector3(0, 1.12, 0), Vector3(0.64, 0.03, 0.62), Color("#a83e25"))
+	_box(saddle, Vector3(0, 1.13, 0), Vector3(0.62, 0.02, 0.24), Color("#e0b85a"))
+	# Cantilevered suspension seat for cushioning high leaps
+	_box(saddle, Vector3(0, 1.21, 0.06), Vector3(0.38, 0.16, 0.40), Color("#874c28"))
+	_box(saddle, Vector3(0, 1.28, -0.12), Vector3(0.20, 0.10, 0.08), Color("#a83e25"))
+	# Flexible spring-steel stirrup drop irons with wide shock footplates
+	for side: float in [-1.0, 1.0]:
+		_box(saddle, Vector3(side * 0.38, 0.85, 0), Vector3(0.05, 0.42, 0.16), Color("#54321b"))
+		_box(saddle, Vector3(side * 0.40, 0.56, 0), Vector3(0.14, 0.04, 0.24), Color("#8f949c"))
+	# Copper bell neck collar
+	_box(saddle, Vector3(0, 1.18, -0.64), Vector3(0.36, 0.08, 0.12), Color("#b86e37"))
+	_cylinder(saddle, Vector3(0, 1.10, -0.66), 0.04, 0.04, 0.08, Color("#d98941"))
+
+func _build_standard_saddle() -> void:
+	var saddle := Node3D.new()
+	saddle.name = "SaddleRig"
+	saddle.set_meta("saddle_style", "standard")
+	_mount_root.add_child(saddle)
+	_box(saddle, Vector3(0, 1.11, 0), Vector3(0.64, 0.12, 0.62), Color("#3c6662"))
+	_box(saddle, Vector3(0, 1.19, 0.08), Vector3(0.43, 0.15, 0.46), Color("#8d572d"))
 	for side in [-1.0, 1.0]:
-		_box(_mount_root, Vector3(side * 0.4, 0.89, 0), Vector3(0.075, 0.44, 0.34), Color("#70482b"))
-		_box(_mount_root, Vector3(side * 0.42, 0.65, 0), Vector3(0.12, 0.055, 0.23), Color("#c3aa66"))
+		_box(saddle, Vector3(side * 0.4, 0.89, 0), Vector3(0.075, 0.44, 0.34), Color("#70482b"))
+		_box(saddle, Vector3(side * 0.42, 0.65, 0), Vector3(0.12, 0.055, 0.23), Color("#c3aa66"))
 
 func _mesh(parent: Node3D, mesh: Mesh, color: Color, at: Vector3) -> MeshInstance3D:
 	var instance := MeshInstance3D.new()

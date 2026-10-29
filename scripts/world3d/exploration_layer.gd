@@ -59,6 +59,8 @@ func _ready() -> void:
 	zone.add_child(residents)
 	residents.configure(zone_id)
 	ProgressionManager.chapter_changed.connect(func(): hud.refresh())
+	ProgressionManager.chapter_event_recorded.connect(func(event_id: String):
+		hud.toast(ProgressionManager.get_event_feedback(event_id), 6.0))
 	homestead.shelter_cared.connect(func(_id):
 		if zone_id == "sanctuary_town":
 			ProgressionManager.record_chapter_event("shelter_cared")

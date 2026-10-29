@@ -103,7 +103,7 @@ func try_learn_move(move: MoveData) -> bool:
 static func create(species_data: CreatureSpecies, starting_level: int = 5, origin_location: String = "Route 01") -> CreatureInstance:
 	assert(species_data != null, "CreatureInstance requires CreatureSpecies data")
 	var creature = CreatureInstance.new()
-	creature.instance_id = "CR_%06d" % (randi() % 900000 + 100000)
+	creature.instance_id = _new_instance_id()
 	creature.species = species_data
 	creature.bond_location = origin_location
 	creature.bond_timestamp = int(Time.get_unix_time_from_system())
@@ -115,6 +115,8 @@ static func create(species_data: CreatureSpecies, starting_level: int = 5, origi
 	return creature
 
 static func from_save_dict(data: Dictionary, species_lookup: Dictionary, move_lookup: Dictionary) -> CreatureInstance:
+	if not validate_save_data(data, species_lookup):
+		return null
 	var species_id = StringName(str(data.get("species_id", "")))
 	if not species_lookup.has(species_id):
 		push_warning("[WILDBOUND] Save references unknown species: %s" % species_id)
@@ -122,7 +124,8 @@ static func from_save_dict(data: Dictionary, species_lookup: Dictionary, move_lo
 
 	var creature = CreatureInstance.new()
 	creature.species = species_lookup[species_id] as CreatureSpecies
-	creature.instance_id = str(data.get("instance_id", "CR_%06d" % (randi() % 900000 + 100000)))
+	creature.instance_id = data.get("instance_id", "")
+	if creature.instance_id.is_empty(): creature.instance_id = _new_instance_id()
 	creature.set_nickname(str(data.get("nickname", "")))
 	creature.is_favorite = bool(data.get("is_favorite", false))
 	creature.bond_location = str(data.get("bond_location", "Route 01"))
@@ -144,6 +147,28 @@ static func from_save_dict(data: Dictionary, species_lookup: Dictionary, move_lo
 
 	creature.current_vitality = clampi(int(data.get("current_vitality", creature.max_vitality())), 0, creature.max_vitality())
 	return creature
+
+static func _new_instance_id() -> String:
+	return "CR_" + Crypto.new().generate_random_bytes(16).hex_encode()
+
+static func validate_save_data(data: Dictionary, species_lookup: Dictionary) -> bool:
+	if not data.get("species_id", "") is String or not species_lookup.has(StringName(data.get("species_id", ""))):
+		return false
+	for key: String in ["instance_id", "nickname", "bond_location", "status_id"]:
+		if data.has(key) and not data[key] is String: return false
+	for key: String in ["is_favorite", "is_wild", "was_wildbonded"]:
+		if data.has(key) and not data[key] is bool: return false
+	for key: String in ["level", "experience", "current_vitality", "bond_timestamp"]:
+		if not data.has(key): continue
+		var number: Variant = data[key]
+		if not (number is int or number is float) or not is_finite(float(number)) or number < 0:
+			return false
+	if data.get("level", 1) < 1: return false
+	var moves: Variant = data.get("move_ids", [])
+	if not moves is Array or moves.size() > 4: return false
+	for move: Variant in moves:
+		if not move is String: return false
+	return true
 
 func max_vitality() -> int:
 	if species == null:

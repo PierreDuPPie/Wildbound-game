@@ -1,15 +1,15 @@
 class_name BurrowBreakerAbility
 extends ExplorationAbility
-## Ratelit's signature ability: Burrow Breaker
+## Signature ability: Burrow Breaker
 ## Uncovers hidden passages, excavates buried relics, and shatters crumbled rockfalls.
 
 func _init() -> void:
 	ability_id = &"burrow_breaker"
 	display_name = "Burrow Breaker"
-	description = "Ratelit digs beneath obstructions and shatters cracked boulders."
+	description = "Digs beneath obstructions and shatters cracked boulders."
 	activation_type = &"target"
 	cooldown = 2.0
-	prompt_text = "Ratelit: Burrow Breaker"
+	prompt_text = "Burrow Breaker"
 	target_group = &"burrow_obstacle"
 
 func can_activate(actor: Node3D, target: Node3D = null, companion = null) -> bool:
@@ -23,4 +23,5 @@ func activate(actor: Node3D, target: Node3D = null, companion = null, context: N
 	
 	target.shatter(actor)
 	activated.emit(ability_id, actor)
-	return {"success": true, "message": "Ratelit tore through the cracked barrier!"}
+	var name_tag: String = companion.display_name() if companion != null and companion.has_method("display_name") else "Your companion"
+	return {"success": true, "message": "%s tore through the cracked barrier!" % name_tag}

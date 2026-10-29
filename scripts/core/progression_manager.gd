@@ -3,6 +3,7 @@ extends Node
 signal objective_changed(new_objective: String)
 signal spawn_bonded(spawn_id: String)
 signal chapter_changed
+signal chapter_event_recorded(event_id: String)
 
 const CHAPTER_PATH := "res://data/story/chapter_01.json"
 const CHAPTER_EVENTS := ["arrival", "first_bond", "injured_helped", "tracks", "evidence", "report", "shelter_cared", "resonance"]
@@ -72,7 +73,12 @@ func record_chapter_event(event_id: String) -> bool:
 			if not can_access("resonance"): return false
 	chapter_events.append(event_id)
 	refresh_chapter()
+	chapter_event_recorded.emit(event_id)
 	return true
+
+func get_event_feedback(event_id: String) -> String:
+	var titles := {"arrival":"Ranger briefing complete", "first_bond":"A new Wildbond!", "injured_helped":"Pangolet is safe", "tracks":"Strange tracks discovered", "evidence":"Evidence recovered", "report":"Findings delivered", "shelter_cared":"A keeper's promise kept", "resonance":"Chapter 1 complete!"}
+	return "FIELD NOTE %d / %d\n%s. Open Pack > Field Notes to revisit your expedition." % [chapter_events.size(), CHAPTER_EVENTS.size(), titles.get(event_id, "Discovery recorded")]
 
 func chapter_complete() -> bool:
 	return has_chapter_event("resonance")

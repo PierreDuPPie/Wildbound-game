@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="CreatureSpecies" load_steps=10 format=3]
+[gd_resource type="Resource" script_class="CreatureSpecies" load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/creature_species.gd" id="1_species"]
 [ext_resource type="Resource" path="res://data/aspects/stone.tres" id="2_aspect"]
@@ -10,6 +10,8 @@
 [ext_resource type="Script" path="res://scripts/data/aspect_data.gd" id="8_aspect_type"]
 [ext_resource type="Script" path="res://scripts/data/move_data.gd" id="9_move_type"]
 
+[ext_resource type="Resource" path="res://data/abilities/burrow_breaker.tres" id="10_ability"]
+
 [resource]
 script = ExtResource("1_species")
 species_id = &"rhinorex"
@@ -20,6 +22,7 @@ rarity = &"common"
 animal_inspiration = "White Rhinoceros (Ceratotherium simum)"
 habitat_tags = Array[StringName]([&"savannah", &"grassland", &"woodland"])
 temperament_tags = Array[StringName]([&"docile", &"defensive", &"poor-sighted"])
+exploration_ability = ExtResource("10_ability")
 aspects = Array[ExtResource("8_aspect_type")]([ExtResource("2_aspect")])
 instinct = ExtResource("3_instinct")
 base_vitality = 70

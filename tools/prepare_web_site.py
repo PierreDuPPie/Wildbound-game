@@ -21,7 +21,7 @@ else:
 
 (dist / "manifest.webmanifest").write_text(json.dumps({
     "name": "Wildbound", "short_name": "Wildbound", "start_url": "./",
-    "scope": "./", "display": "standalone", "orientation": "landscape",
+    "scope": "./", "display": "standalone", "orientation": "any",
     "background_color": "#172d27", "theme_color": "#172d27",
     "icons": [{"src": "wildbound.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any"}],
 }, indent=2) + "\n", encoding="utf-8")

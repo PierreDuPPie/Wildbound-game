@@ -43,6 +43,7 @@ var _waiting_faint_replacement: bool = false
 # Support moves change combat stats only for the current battle. Per-creature
 # keys preserve the effects on switching without modifying saved creatures.
 var _stat_stages: Dictionary = {}
+var _item_buffs: Dictionary = {}
 const MAX_STAT_STAGE: int = 3
 const STAT_STAGE_AMOUNT: float = 0.25
 
@@ -69,6 +70,7 @@ func start_battle(player_creature: CreatureInstance, enemy_creature: CreatureIns
 	_grit_used.clear()
 	_waiting_faint_replacement = false
 	_stat_stages.clear()
+	_item_buffs.clear()
 	hp_changed.emit(&"player", player.current_vitality, player.max_vitality())
 	hp_changed.emit(&"enemy", enemy.current_vitality, enemy.max_vitality())
 	battle_log.emit("A wild %s appears!" % enemy.display_name())
@@ -351,7 +353,20 @@ func _change_stat_stage(creature: CreatureInstance, stat: StringName, amount: in
 
 func _stat_multiplier(creature: CreatureInstance, stat: StringName) -> float:
 	var stages: Dictionary = _stat_stages.get(creature.get_instance_id(), {})
-	return 1.0 + STAT_STAGE_AMOUNT * int(stages.get(stat, 0))
+	var buffs: Dictionary = _item_buffs.get(creature.get_instance_id(), {})
+	return (1.0 + STAT_STAGE_AMOUNT * int(stages.get(stat, 0))) * (1.0 + float(buffs.get(stat, 0.0)))
+
+func apply_item_buff(creature: CreatureInstance, item: ItemData) -> bool:
+	if not _can_accept_action() or creature != player or not creature.is_conscious() or item == null:
+		return false
+	if item.buff_stat not in [&"power", &"guard"] or item.buff_percent <= 0.0 or not is_finite(item.buff_percent):
+		return false
+	var buffs: Dictionary = _item_buffs.get(creature.get_instance_id(), {})
+	if float(buffs.get(item.buff_stat, 0.0)) >= item.buff_percent:
+		return false
+	buffs[item.buff_stat] = item.buff_percent
+	_item_buffs[creature.get_instance_id()] = buffs
+	return true
 
 func _is_debuffed(creature: CreatureInstance) -> bool:
 	if creature.status_id != &"none" and not creature.status_id.is_empty():

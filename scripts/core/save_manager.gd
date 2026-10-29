@@ -109,12 +109,8 @@ func _read_valid_save(path: String) -> Dictionary:
 	if int(data.get("version", 0)) != SAVE_VERSION or not data.get("party") is Dictionary:
 		return {}
 	var party_blob: Dictionary = data.party
-	if not party_blob.get("party") is Array or party_blob.party.is_empty() or not party_blob.get("reserve", []) is Array:
+	if not PartyManager.validate_save_data(party_blob):
 		return {}
-	var known_species: Dictionary = PartyManager.species_lookup()
-	for creature: Variant in party_blob.party + party_blob.get("reserve", []):
-		if not creature is Dictionary or not known_species.has(StringName(str(creature.get("species_id", "")))):
-			return {}
 	if not data.get("player_position", {}) is Dictionary or not data.get("inventory", {}) is Dictionary:
 		return {}
 	if not preload("res://scripts/core/progression_manager.gd").validate_save_data(data.get("progression",{})):
